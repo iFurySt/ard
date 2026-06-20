@@ -1,7 +1,7 @@
 PROJECT ?=
 SLUG ?=
 
-.PHONY: init new-history new-plan fmt fmt-check test test-integration build
+.PHONY: init new-history new-plan fmt fmt-check test test-integration test-e2e build
 
 init:
 	@if [ -z "$(PROJECT)" ]; then echo "usage: make init PROJECT=my-project"; exit 1; fi
@@ -26,6 +26,9 @@ test:
 
 test-integration:
 	./scripts/test-integration.sh
+
+test-e2e:
+	./scripts/test-e2e-artifacts.sh
 
 build:
 	go build -o bin/ard ./cmd/ard

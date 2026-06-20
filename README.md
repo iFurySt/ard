@@ -42,6 +42,7 @@ ard verify catalog https://example.com/.well-known/ai-catalog.json
 ```sh
 make build
 make test-integration
+make test-e2e
 make fmt-check
 
 bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/acme-ai-catalog.json
@@ -70,6 +71,7 @@ explore facets, catalog export, local listing, entry removal, and token-protecte
 API routes with an `ardctl admin` client. It builds three entry points: `ard` for the
 combined toolkit, `ardctl` for CLI/client operations, and `ard-server` for the registry
 server. CI runs formatting checks, tests, builds, and Postgres integration tests.
+`make test-e2e` runs the real artifact onboarding flow with live MCP and Skill examples.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including

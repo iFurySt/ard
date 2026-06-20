@@ -37,6 +37,9 @@ This document defines the default collaboration model for an agent-first reposit
   tests on pushes to `main` and pull requests.
 - CI uses a Postgres 16 service and passes `ARD_TEST_DATABASE_URL` into
   `make test-integration`; local runs without that variable still use Docker.
+- `make test-e2e` runs a heavier local E2E flow with live MCP and Skill artifacts plus
+  the checked-in A2A fixture. It is intentionally outside the default CI path because it
+  depends on external network availability.
 - Release packaging is not automated yet. When release automation is added, document the
   release artifacts and operational assumptions in the same change.
 
