@@ -26,6 +26,9 @@ func TestCLICommandOmitsServe(t *testing.T) {
 	if _, _, err := command.Find([]string{"add"}); err != nil {
 		t.Fatalf("expected ardctl add command: %v", err)
 	}
+	if _, _, err := command.Find([]string{"admin"}); err != nil {
+		t.Fatalf("expected ardctl admin command: %v", err)
+	}
 	if _, _, err := command.Find([]string{"search"}); err != nil {
 		t.Fatalf("expected ardctl search command: %v", err)
 	}

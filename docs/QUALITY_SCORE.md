@@ -13,7 +13,7 @@ Track quality by product area and architectural layer so agents can prioritize t
 
 | Area | Score | Why | Next Step |
 | --- | --- | --- | --- |
-| Product surface | C | CLI and registry can import catalogs, crawl well-known catalogs, onboard MCP/A2A/Skill artifacts, list and remove entries, export catalogs, search, browse, and explore. Combined, CLI-only, and server-only entrypoints are available. Policy and richer governance flows are still missing. | Define the first enterprise registry workflow end to end, including publish/update and approval states. |
+| Product surface | C | CLI and registry can import catalogs, crawl well-known catalogs, onboard MCP/A2A/Skill artifacts, list and remove entries, export catalogs, search, browse, explore, and manage remote admin APIs. Combined, CLI-only, and server-only entrypoints are available. Policy and richer governance flows are still missing. | Define the first enterprise registry workflow end to end, including publish/update and approval states. |
 | Architecture docs | B | `docs/ARCHITECTURE.md` now describes the Go/Cobra/Gin/GORM/Postgres stack and package boundaries. | Keep adapter, API, and storage decisions updated as public SDK boundaries emerge. |
 | Testing | C | Unit tests, Postgres integration tests, build checks, and upstream ARD conformance runs cover core ingestion/search paths. | Add repeatable E2E scripts for artifact onboarding with pinned real MCP/A2A/Skill fixtures. |
 | Observability | D | Health check exists, but structured logs, metrics, traces, and operational dashboards are not implemented. | Add request logging and a documented local observability workflow. |

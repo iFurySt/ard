@@ -31,6 +31,8 @@ ard crawl
 ardctl list --kind mcp
 ardctl remove urn:air:example.com:server:weather --yes
 ardctl export catalog -o ai-catalog.json
+ardctl admin list --registry-url https://registry.example.com --admin-token "$ARD_ADMIN_TOKEN"
+ardctl admin add catalog ./ai-catalog.json --registry-url https://registry.example.com
 ard search "query observability logs" --kind mcp
 ard verify catalog https://example.com/.well-known/ai-catalog.json
 ```
@@ -55,7 +57,7 @@ bin/ard-server --database-url "$DATABASE_URL" --admin-token "$ARD_ADMIN_TOKEN"
 
 # terminal 2
 bin/ardctl search "weather forecast" --kind mcp --json
-curl -H "Authorization: Bearer $ARD_ADMIN_TOKEN" http://127.0.0.1:8080/admin/entries
+bin/ardctl admin list --admin-token "$ARD_ADMIN_TOKEN"
 ```
 
 ## Status
@@ -64,8 +66,9 @@ This repository is in early implementation. Current milestones include a Go CLI,
 Gin-based registry server, GORM/Postgres persistence, catalog import, well-known catalog
 crawl, MCP/A2A/Skill artifact onboarding, catalog verification, ARD search, browse, and
 explore facets, catalog export, local listing, entry removal, and token-protected admin
-API routes. It builds three entry points: `ard` for the combined toolkit, `ardctl` for
-CLI/client operations, and `ard-server` for the registry server.
+API routes with an `ardctl admin` client. It builds three entry points: `ard` for the
+combined toolkit, `ardctl` for CLI/client operations, and `ard-server` for the registry
+server.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including

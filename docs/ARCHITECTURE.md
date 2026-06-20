@@ -8,8 +8,8 @@ Cobra, Gin, GORM, and Postgres.
 - Registry server: self-hosted ARD registry exposing discovery, search, health, and
   catalog endpoints through Gin, plus optional token-protected admin routes.
 - CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
-  `add skill`, `crawl`, `export catalog`, `list`, `remove`, `verify catalog`, and
-  `search` today.
+  `add skill`, `admin`, `crawl`, `export catalog`, `list`, `remove`, `verify catalog`,
+  and `search` today.
 - Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
   management operations without server startup, and `cmd/ard-server` ships a dedicated
   registry server binary.
@@ -22,7 +22,7 @@ Cobra, Gin, GORM, and Postgres.
   persisted catalog entries.
 - Admin API: when `ARD_ADMIN_TOKEN` or `--admin-token` is configured, Gin exposes
   protected `/admin/*` routes for entry listing, entry upsert, catalog upsert, catalog
-  export, and deletion.
+  export, and deletion. `ardctl admin` is the first client for those remote routes.
 - Artifact onboarding: `ard add mcp`, `ard add a2a`, and `ard add skill` translate real
   MCP server cards, A2A agent cards, and Skill markdown files into ARD catalog entries.
 - Verification engine: initial schema-level checks cover `urn:air:`, required fields,
@@ -116,8 +116,8 @@ boundary without changing HTTP contracts.
 - `/admin/*`: implementation-specific management routes; disabled unless an admin token
   is configured. Implemented.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`, `crawl`,
-  `export catalog`, `list`, `remove`, `verify catalog`, and `search` are implemented.
-  `ard-server` runs the same server without exposing management subcommands.
+  `admin`, `export catalog`, `list`, `remove`, `verify catalog`, and `search` are
+  implemented. `ard-server` runs the same server without exposing management subcommands.
 
 ## Specification Alignment
 
