@@ -191,10 +191,15 @@ func ValidateCatalog(catalog Catalog) error {
 	if len(catalog.Entries) == 0 {
 		return errors.New("entries must not be empty")
 	}
+	seenIdentifiers := make(map[string]int, len(catalog.Entries))
 	for index, entry := range catalog.Entries {
 		if err := ValidateCatalogEntry(entry); err != nil {
 			return fmt.Errorf("entries[%d]: %w", index, err)
 		}
+		if previousIndex, ok := seenIdentifiers[entry.Identifier]; ok {
+			return fmt.Errorf("entries[%d]: duplicate identifier %q also used by entries[%d]", index, entry.Identifier, previousIndex)
+		}
+		seenIdentifiers[entry.Identifier] = index
 	}
 	return nil
 }

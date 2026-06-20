@@ -43,6 +43,7 @@ Use this document to make secure defaults explicit and legible to agents.
 - Catalog entry `url` values must be absolute HTTP(S) URLs.
 - Catalog entry `updatedAt` must be an RFC3339 date-time when present, and entry
   `metadata` values must be strings, numbers, booleans, or null.
+- Catalog entry `identifier` values must be unique within a catalog import.
 - `trustManifest.identityType`, when present, must be one of the ARD schema values:
   `spiffe`, `did`, `https`, or `other`.
 - `trustManifest.trustSchema` and `trustManifest.signature`, when present, are validated

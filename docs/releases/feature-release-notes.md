@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Security | Catalog imports now reject duplicate entry identifiers before persistence. | Added catalog-level duplicate `identifier` validation so one import cannot define ambiguous entries with the same ARD URN. |
 | 2026-06-21 | Security | Catalog imports now reject malformed trust schema and signature metadata before persistence. | Added ARD schema-aligned `trustManifest.trustSchema` structure validation and `trustManifest.signature` type validation without attempting signature verification. |
 | 2026-06-21 | Security | Catalog imports now reject relative or non-HTTP artifact URLs before persistence. | Tightened catalog entry `url` validation to require absolute HTTP(S) URLs, matching ARD's HTTP URL reference semantics. |
 | 2026-06-21 | Security | Catalog imports now reject malformed entry timestamps and complex metadata values before persistence. | Added ARD schema-aligned `updatedAt` RFC3339 date-time validation and scalar-only `metadata` value checks for catalog entries. |

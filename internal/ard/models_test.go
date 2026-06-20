@@ -20,6 +20,24 @@ func validCatalog() Catalog {
 	}
 }
 
+func TestValidateCatalogRejectsDuplicateIdentifiers(t *testing.T) {
+	catalog := validCatalog()
+	catalog.Entries = append(catalog.Entries, CatalogEntry{
+		Identifier:  "urn:air:acme.com:server:weather",
+		DisplayName: "Weather Data Node Copy",
+		Type:        TypeMCPServerCard,
+		URL:         "https://api.acme.com/mcp/weather-copy.json",
+	})
+
+	err := ValidateCatalog(catalog)
+	if err == nil {
+		t.Fatal("expected duplicate identifier to be rejected")
+	}
+	if !strings.Contains(err.Error(), "entries[1]: duplicate identifier") {
+		t.Fatalf("expected duplicate identifier error with entry index, got %v", err)
+	}
+}
+
 func TestValidateCatalogHostInfo(t *testing.T) {
 	catalog := validCatalog()
 	catalog.Host = &HostInfo{
