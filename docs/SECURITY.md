@@ -66,6 +66,16 @@ Use this document to make secure defaults explicit and legible to agents.
 - If deployment policy requires private metrics, restrict `/metrics` at the ingress or
   network layer.
 
+## Federation
+
+- `federation=auto` sends the search request body, including query text and filters, to
+  configured upstream registry referrals.
+- Configure upstream registry referrals only for networks that are acceptable recipients
+  of those queries.
+- Admin bearer tokens are not forwarded to upstream federation requests.
+- Upstream federation requests are forced to `federation=none` to reduce accidental
+  recursive data sharing.
+
 ## Current Gaps
 
 - No token rotation workflow yet.

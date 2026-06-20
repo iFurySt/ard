@@ -17,6 +17,9 @@ Cobra, Gin, GORM, and Postgres.
 - Federation referrals: `POST /search` supports `federation=referrals` by returning
   active `application/ai-registry+json` entries in `SearchResponse.referrals` for
   client-followed federation.
+- Federation auto merge: `POST /search` supports `federation=auto` by querying active
+  registry referrals, forcing upstream requests to `federation=none`, and merging
+  upstream results with local results.
 - Catalog ingestion: `ard add catalog` loads local or remote `ai-catalog.json` files,
   validates them, and persists entries.
 - Catalog export: `ardctl export catalog` writes persisted registry entries as a
@@ -124,9 +127,10 @@ boundary without changing HTTP contracts.
   not execute tools.
 - Search and ranking should consume normalized catalog entries, not protocol-specific
   objects.
-- Federation traversal should be bounded by depth, registry count, response size, and
-  timeout controls. The current implementation returns referrals but does not yet perform
-  automatic upstream traversal.
+- Federation traversal must stay bounded by depth, registry count, response size, and
+  timeout controls. Auto federation currently queries at most three upstream registry
+  referrals, uses non-recursive upstream search requests, limits response bodies, and
+  returns a local-first merged result set.
 - Secrets and tokens may be used during request scope only; they must not be stored or
   emitted in plain text.
 - Admin API routes must remain disabled by default and require an authorized
@@ -180,8 +184,9 @@ conformance tool over older reference implementations. In particular:
 - Support web ingestion of `ai-catalog.json` catalogs as a required registry capability.
 - Keep `/explore` local-only and optional; if unsupported, return `501`.
 - Keep federation controlled by root-level `SearchRequest.federation`. `referrals` mode
-  returns registry entries in `SearchResponse.referrals`; `auto` upstream merge is not
-  implemented yet.
+  returns registry entries in `SearchResponse.referrals`; `auto` mode performs a bounded
+  server-side upstream merge. Upstream auto requests are sent with `federation=none` to
+  avoid recursive traversal.
 
 Do not vendor or fork the upstream spec content casually. If the implementation needs
 schemas or conformance tools in-repo, add a pinned, documented copy under a clearly named
@@ -197,6 +202,4 @@ third-party or generated directory and record the source commit.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.
 - Whether to replace the MVP JSON ingestion policy with a richer policy engine.
-- Whether and how to implement automatic upstream search merge for `federation=auto`.
-
 When these decisions are made, update this file in the same task as the code.

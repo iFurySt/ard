@@ -5,6 +5,7 @@ postgres_container="${ARD_E2E_POSTGRES_CONTAINER:-ard-e2e-postgres}"
 postgres_port="${ARD_E2E_POSTGRES_PORT:-55440}"
 fixture_port="${ARD_E2E_FIXTURE_PORT:-18087}"
 registry_port="${ARD_E2E_REGISTRY_PORT:-18088}"
+upstream_port="${ARD_E2E_UPSTREAM_PORT:-18089}"
 admin_token="${ARD_E2E_ADMIN_TOKEN:-test-token}"
 database_url="postgres://ard:ard@127.0.0.1:${postgres_port}/ard?sslmode=disable"
 registry_url="http://127.0.0.1:${registry_port}"
@@ -15,6 +16,7 @@ tokens_file="$(mktemp /tmp/ard-e2e-tokens-XXXXXX.json)"
 mcp_card_file="$(mktemp /tmp/ard-e2e-mcp-card-XXXXXX.json)"
 skill_file="$(mktemp /tmp/ard-e2e-skill-XXXXXX.md)"
 openapi_file="$(mktemp /tmp/ard-e2e-openapi-XXXXXX.json)"
+upstream_server_file="$(mktemp /tmp/ard-e2e-upstream-XXXXXX.py)"
 conformance_bin="${ARD_CONFORMANCE_BIN:-../ard-spec/conformance/bin/conformance-test}"
 
 mcp_card_url="https://raw.githubusercontent.com/clauxel/agentmemory-mcp/main/server.json"
@@ -31,8 +33,12 @@ cleanup() {
     kill "${fixture_pid}" >/dev/null 2>&1 || true
     wait "${fixture_pid}" >/dev/null 2>&1 || true
   fi
+  if [ -n "${upstream_pid:-}" ]; then
+    kill "${upstream_pid}" >/dev/null 2>&1 || true
+    wait "${upstream_pid}" >/dev/null 2>&1 || true
+  fi
   docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
-  rm -f "${export_file}" "${referral_catalog_file}" "${policy_file}" "${tokens_file}" "${mcp_card_file}" "${skill_file}" "${openapi_file}"
+  rm -f "${export_file}" "${referral_catalog_file}" "${policy_file}" "${tokens_file}" "${mcp_card_file}" "${skill_file}" "${openapi_file}" "${upstream_server_file}"
 }
 trap cleanup EXIT
 
@@ -84,12 +90,53 @@ cat >"${referral_catalog_file}" <<JSON
       "identifier": "urn:air:agent.localhost:registry:e2e-upstream",
       "displayName": "E2E Upstream Registry",
       "type": "application/ai-registry+json",
-      "url": "http://127.0.0.1:${registry_port}/search",
+      "url": "http://127.0.0.1:${upstream_port}/search",
       "description": "Local upstream registry referral used by the E2E flow."
     }
   ]
 }
 JSON
+cat >"${upstream_server_file}" <<'PY'
+import json
+import sys
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+
+class Handler(BaseHTTPRequestHandler):
+    def do_POST(self):
+        if self.path != "/search":
+            self.send_response(404)
+            self.end_headers()
+            return
+        length = int(self.headers.get("content-length", "0"))
+        if length:
+            self.rfile.read(length)
+        payload = {
+            "results": [
+                {
+                    "identifier": "urn:air:upstream.localhost:server:federated-weather",
+                    "displayName": "Federated Weather MCP",
+                    "type": "application/mcp-server-card+json",
+                    "url": "https://upstream.localhost/mcp/weather.json",
+                    "description": "MCP result returned by the E2E upstream registry.",
+                    "score": 71,
+                    "source": "e2e-upstream"
+                }
+            ]
+        }
+        data = json.dumps(payload).encode("utf-8")
+        self.send_response(200)
+        self.send_header("content-type", "application/json")
+        self.send_header("content-length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, format, *args):
+        return
+
+
+ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
+PY
 
 docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
 docker run \
@@ -118,6 +165,16 @@ for _ in $(seq 1 30); do
   sleep 0.5
 done
 curl -fsS "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" >/dev/null
+
+python3 "${upstream_server_file}" "${upstream_port}" >/tmp/ard-e2e-upstream.log 2>&1 &
+upstream_pid=$!
+for _ in $(seq 1 30); do
+  if curl -fsS -X POST "http://127.0.0.1:${upstream_port}/search" >/dev/null 2>&1; then
+    break
+  fi
+  sleep 0.5
+done
+curl -fsS -X POST "http://127.0.0.1:${upstream_port}/search" >/dev/null
 
 bin/ard-server \
   --database-url "${database_url}" \
@@ -203,6 +260,8 @@ bin/ardctl search memory --registry-url "${registry_url}" --kind mcp --json | gr
 bin/ardctl search memory --registry-url "${registry_url}" --kind mcp --federation referrals --json >/tmp/ard-e2e-referrals-search.json
 grep -q '"referrals"' /tmp/ard-e2e-referrals-search.json
 grep -q "E2E Upstream Registry" /tmp/ard-e2e-referrals-search.json
+bin/ardctl search federated --registry-url "${registry_url}" --kind mcp --federation auto --json >/tmp/ard-e2e-auto-search.json
+grep -q "Federated Weather MCP" /tmp/ard-e2e-auto-search.json
 bin/ardctl search browser --registry-url "${registry_url}" --kind skill --json | grep -q "open-browser-use"
 bin/ardctl search pet --registry-url "${registry_url}" --kind openapi --json | grep -q "Swagger Petstore - OpenAPI 3.0"
 bin/ardctl search hello --registry-url "${registry_url}" --kind a2a --json | grep -q "Hello World Agent"

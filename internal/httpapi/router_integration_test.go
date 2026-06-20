@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 
 	"github.com/ifuryst/ard/internal/ard"
@@ -28,6 +29,42 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	if err := registryStore.AutoMigrate(); err != nil {
 		t.Fatalf("migrate store: %v", err)
 	}
+	var upstreamMu sync.Mutex
+	upstreamRequests := []ard.SearchRequest{}
+	upstreamServer := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if request.URL.Path != "/search" {
+			http.Error(response, "unexpected upstream path", http.StatusNotFound)
+			return
+		}
+		var upstreamRequest ard.SearchRequest
+		if err := json.NewDecoder(request.Body).Decode(&upstreamRequest); err != nil {
+			http.Error(response, err.Error(), http.StatusBadRequest)
+			return
+		}
+		upstreamMu.Lock()
+		upstreamRequests = append(upstreamRequests, upstreamRequest)
+		upstreamMu.Unlock()
+		if upstreamRequest.Federation != "none" {
+			http.Error(response, "upstream federation must be none", http.StatusBadRequest)
+			return
+		}
+		response.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(response).Encode(ard.SearchResponse{
+			Results: []ard.SearchResult{
+				{
+					CatalogEntry: ard.CatalogEntry{
+						Identifier:  "urn:air:upstream.example.com:server:remote-weather",
+						DisplayName: "Remote Weather MCP",
+						Type:        ard.TypeMCPServerCard,
+						URL:         "https://upstream.example.com/mcp/weather.json",
+					},
+					Score:  72,
+					Source: "upstream-test",
+				},
+			},
+		})
+	}))
+	t.Cleanup(upstreamServer.Close)
 	if err := registryStore.UpsertCatalog(ctx, ard.Catalog{
 		SpecVersion: "1.0",
 		Entries: []ard.CatalogEntry{
@@ -43,7 +80,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 				Identifier:  "urn:air:upstream.example.com:registry:public",
 				DisplayName: "Public Upstream Registry",
 				Type:        ard.TypeAIRegistry,
-				URL:         "https://upstream.example.com/search",
+				URL:         upstreamServer.URL,
 				Description: "Upstream ARD registry for referral-mode federation.",
 			},
 		},
@@ -107,6 +144,44 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	}
 	if federated.Referrals[0].Type != ard.TypeAIRegistry {
 		t.Fatalf("unexpected referral type: %s", federated.Referrals[0].Type)
+	}
+
+	autoBody, _ := json.Marshal(ard.SearchRequest{
+		Query: ard.SearchQuery{
+			Text: "weather",
+		},
+		Federation: "auto",
+		PageSize:   5,
+	})
+	autoRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(autoBody))
+	autoRequest.Header.Set("Content-Type", "application/json")
+	autoResponse := httptest.NewRecorder()
+	router.ServeHTTP(autoResponse, autoRequest)
+	if autoResponse.Code != http.StatusOK {
+		t.Fatalf("expected auto federation HTTP 200, got %d: %s", autoResponse.Code, autoResponse.Body.String())
+	}
+	var auto ard.SearchResponse
+	if err := json.Unmarshal(autoResponse.Body.Bytes(), &auto); err != nil {
+		t.Fatalf("decode auto federation response: %v", err)
+	}
+	foundRemote := false
+	for _, result := range auto.Results {
+		if result.Identifier == "urn:air:upstream.example.com:server:remote-weather" {
+			foundRemote = true
+		}
+	}
+	if !foundRemote {
+		t.Fatalf("expected auto federation remote result, got %#v", auto.Results)
+	}
+	upstreamMu.Lock()
+	defer upstreamMu.Unlock()
+	if len(upstreamRequests) == 0 {
+		t.Fatal("expected at least one upstream federation request")
+	}
+	for _, request := range upstreamRequests {
+		if request.Federation != "none" {
+			t.Fatalf("expected all upstream requests to use federation=none, got %#v", upstreamRequests)
+		}
 	}
 }
 

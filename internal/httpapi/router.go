@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/federation"
 	"github.com/ifuryst/ard/internal/policy"
 	"github.com/ifuryst/ard/internal/store"
 )
@@ -132,7 +133,8 @@ func (server Server) search(context *gin.Context) {
 		return
 	}
 	response := ard.SearchResponse{Results: results}
-	if request.NormalizedFederation() == "referrals" {
+	switch request.NormalizedFederation() {
+	case "referrals":
 		referrals, err := server.store.RegistryReferrals(context.Request.Context(), request.NormalizedPageSize())
 		if err != nil {
 			context.JSON(http.StatusInternalServerError, gin.H{
@@ -142,8 +144,46 @@ func (server Server) search(context *gin.Context) {
 			return
 		}
 		response.Referrals = referrals
+	case "auto":
+		referrals, err := server.store.RegistryReferrals(context.Request.Context(), federation.MaxUpstreamRegistries)
+		if err != nil {
+			context.JSON(http.StatusInternalServerError, gin.H{
+				"errorCode": "INTERNAL_ERROR",
+				"message":   err.Error(),
+			})
+			return
+		}
+		upstreamResults := federation.NewClient().Search(context.Request.Context(), referrals, request)
+		response.Results = mergeSearchResults(results, upstreamResults, request.NormalizedPageSize())
 	}
 	context.JSON(http.StatusOK, response)
+}
+
+func mergeSearchResults(local []ard.SearchResult, upstream []ard.SearchResult, limit int) []ard.SearchResult {
+	if limit <= 0 {
+		limit = 10
+	}
+	seen := map[string]struct{}{}
+	results := make([]ard.SearchResult, 0, limit)
+	appendResult := func(result ard.SearchResult) {
+		if len(results) >= limit {
+			return
+		}
+		if result.Identifier != "" {
+			if _, ok := seen[result.Identifier]; ok {
+				return
+			}
+			seen[result.Identifier] = struct{}{}
+		}
+		results = append(results, result)
+	}
+	for _, result := range local {
+		appendResult(result)
+	}
+	for _, result := range upstream {
+		appendResult(result)
+	}
+	return results
 }
 
 func (server Server) agents(context *gin.Context) {

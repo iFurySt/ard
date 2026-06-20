@@ -32,8 +32,18 @@ Define the operational bar for the repository here.
 - Metrics must not include bearer tokens, request bodies, search text, or remote artifact
   URLs.
 
+## Federation
+
+- `federation=auto` upstream traversal is intentionally shallow and bounded.
+- The registry queries at most three active upstream registry referrals per search.
+- Upstream HTTP requests use a 10 second client timeout, a bounded response reader, and
+  `federation=none` to avoid recursive registry fan-out.
+- Upstream failures are ignored for the current search response so local search remains
+  available.
+
 ## Current Gaps
 
 - Histograms, runtime metrics, and tracing are not implemented yet.
-- Request correlation IDs are not propagated to outbound artifact fetches yet.
+- Request correlation IDs are not propagated to outbound artifact or federation fetches
+  yet.
 - There is no documented dashboard or incident response workflow yet.
