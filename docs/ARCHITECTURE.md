@@ -10,6 +10,9 @@ Cobra, Gin, GORM, and Postgres.
 - CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
   `add skill`, `crawl`, `verify catalog`, and `search` today; export flows remain
   planned.
+- Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
+  management operations without server startup, and `cmd/ard-server` ships a dedicated
+  registry server binary.
 - Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
 - Catalog ingestion: `ard add catalog` loads local or remote `ai-catalog.json` files,
   validates them, and persists entries.
@@ -20,7 +23,9 @@ Cobra, Gin, GORM, and Postgres.
 
 ## Intended Repository Shape
 
-- `cmd/ard/`: binary entry point.
+- `cmd/ard/`: combined CLI and server binary entry point.
+- `cmd/ardctl/`: CLI/client-only binary entry point.
+- `cmd/ard-server/`: server-only binary entry point.
 - `internal/cli/`: Cobra command tree.
 - `internal/httpapi/`: Gin router and HTTP handlers.
 - `internal/ard/`: ARD models, media type constants, filters, and validation.
@@ -100,7 +105,8 @@ boundary without changing HTTP contracts.
 - `GET /agents`: optional deterministic browse endpoint; implemented for basic listing.
 - `GET /health`: deployment health. Implemented.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`, `crawl`,
-  `verify catalog`, and `search` are implemented; `export` is planned.
+  `verify catalog`, and `search` are implemented. `ard-server` runs the same server
+  without exposing management subcommands. `export` is planned.
 
 ## Specification Alignment
 
@@ -130,7 +136,8 @@ third-party or generated directory and record the source commit.
 - Whether to add an embedded non-Postgres development mode.
 - Ranking strategy for the first release.
 - Trust manifest verification depth for MVP.
-- Whether the server and CLI ship as one binary or separate packages.
+- Release packaging details for the combined `ard`, CLI-only `ardctl`, and server-only
+  `ard-server` binaries.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.
 

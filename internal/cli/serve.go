@@ -15,20 +15,24 @@ func newServeCommand(root *rootOptions) *cobra.Command {
 		Use:   "serve",
 		Short: "Run the ARD registry server",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			registryStore, err := store.Open(config.DatabaseURL(root.databaseURL))
-			if err != nil {
-				return err
-			}
-			defer registryStore.Close()
-			if err := registryStore.AutoMigrate(); err != nil {
-				return err
-			}
-
-			router := httpapi.NewRouter(registryStore)
-			fmt.Fprintf(cmd.ErrOrStderr(), "listening on %s\n", addr)
-			return router.Run(addr)
+			return runServer(cmd, root, addr)
 		},
 	}
 	command.Flags().StringVar(&addr, "addr", ":8080", "HTTP listen address")
 	return command
+}
+
+func runServer(cmd *cobra.Command, root *rootOptions, addr string) error {
+	registryStore, err := store.Open(config.DatabaseURL(root.databaseURL))
+	if err != nil {
+		return err
+	}
+	defer registryStore.Close()
+	if err := registryStore.AutoMigrate(); err != nil {
+		return err
+	}
+
+	router := httpapi.NewRouter(registryStore)
+	fmt.Fprintf(cmd.ErrOrStderr(), "listening on %s\n", addr)
+	return router.Run(addr)
 }

@@ -26,3 +26,5 @@ test-integration:
 
 build:
 	go build -o bin/ard ./cmd/ard
+	go build -o bin/ardctl ./cmd/ardctl
+	go build -o bin/ard-server ./cmd/ard-server
