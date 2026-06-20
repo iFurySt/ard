@@ -27,6 +27,7 @@ func NewClient() Client {
 
 func (client Client) Search(ctx context.Context, referrals []ard.CatalogEntry, request ard.SearchRequest) []ard.SearchResult {
 	request.Federation = "none"
+	request.PageToken = ""
 	results := []ard.SearchResult{}
 	for index, referral := range referrals {
 		if index >= MaxUpstreamRegistries {

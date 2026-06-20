@@ -77,6 +77,22 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 				RepresentativeQueries: []string{"what is the weather", "get a forecast"},
 			},
 			{
+				Identifier:            "urn:air:example.com:server:weather-archive",
+				DisplayName:           "Archive Weather MCP",
+				Type:                  ard.TypeMCPServerCard,
+				URL:                   "https://example.com/mcp/weather-archive.json",
+				Description:           "Paginationneedle historical weather forecast MCP server.",
+				RepresentativeQueries: []string{"paginationneedle weather archive", "historical forecast"},
+			},
+			{
+				Identifier:            "urn:air:example.com:server:weather-current",
+				DisplayName:           "Current Weather MCP",
+				Type:                  ard.TypeMCPServerCard,
+				URL:                   "https://example.com/mcp/weather-current.json",
+				Description:           "Paginationneedle current weather forecast MCP server.",
+				RepresentativeQueries: []string{"paginationneedle current weather", "current forecast"},
+			},
+			{
 				Identifier:  "urn:air:upstream.example.com:registry:public",
 				DisplayName: "Public Upstream Registry",
 				Type:        ard.TypeAIRegistry,
@@ -121,6 +137,71 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	if len(parsed.Referrals) != 0 {
 		t.Fatalf("expected no referrals without federation mode, got %#v", parsed.Referrals)
 	}
+
+	firstPageBody, _ := json.Marshal(ard.SearchRequest{
+		Query: ard.SearchQuery{
+			Text: "paginationneedle",
+			Filter: ard.Filter{
+				"type": []string{ard.TypeMCPServerCard},
+			},
+		},
+		Federation: "none",
+		PageSize:   1,
+	})
+	firstPageRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(firstPageBody))
+	firstPageRequest.Header.Set("Content-Type", "application/json")
+	firstPageResponse := httptest.NewRecorder()
+	router.ServeHTTP(firstPageResponse, firstPageRequest)
+	if firstPageResponse.Code != http.StatusOK {
+		t.Fatalf("expected first page HTTP 200, got %d: %s", firstPageResponse.Code, firstPageResponse.Body.String())
+	}
+	var firstPage ard.SearchResponse
+	if err := json.Unmarshal(firstPageResponse.Body.Bytes(), &firstPage); err != nil {
+		t.Fatalf("decode first page response: %v", err)
+	}
+	if len(firstPage.Results) != 1 || firstPage.PageToken == "" {
+		t.Fatalf("expected one result and next page token, got %#v", firstPage)
+	}
+	secondPageRequestBody, _ := json.Marshal(ard.SearchRequest{
+		Query: ard.SearchQuery{
+			Text: "paginationneedle",
+			Filter: ard.Filter{
+				"type": []string{ard.TypeMCPServerCard},
+			},
+		},
+		Federation: "none",
+		PageSize:   1,
+		PageToken:  firstPage.PageToken,
+	})
+	secondPageRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(secondPageRequestBody))
+	secondPageRequest.Header.Set("Content-Type", "application/json")
+	secondPageResponse := httptest.NewRecorder()
+	router.ServeHTTP(secondPageResponse, secondPageRequest)
+	if secondPageResponse.Code != http.StatusOK {
+		t.Fatalf("expected second page HTTP 200, got %d: %s", secondPageResponse.Code, secondPageResponse.Body.String())
+	}
+	var secondPage ard.SearchResponse
+	if err := json.Unmarshal(secondPageResponse.Body.Bytes(), &secondPage); err != nil {
+		t.Fatalf("decode second page response: %v", err)
+	}
+	if len(secondPage.Results) != 1 {
+		t.Fatalf("expected one second-page result, got %#v", secondPage)
+	}
+	if firstPage.Results[0].Identifier == secondPage.Results[0].Identifier {
+		t.Fatalf("expected second page to advance, got same identifier %s", secondPage.Results[0].Identifier)
+	}
+	invalidPageBody, _ := json.Marshal(ard.SearchRequest{
+		Query:     ard.SearchQuery{Text: "paginationneedle"},
+		PageToken: "not-a-valid-page-token",
+	})
+	invalidPageRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(invalidPageBody))
+	invalidPageRequest.Header.Set("Content-Type", "application/json")
+	invalidPageResponse := httptest.NewRecorder()
+	router.ServeHTTP(invalidPageResponse, invalidPageRequest)
+	if invalidPageResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid page token HTTP 400, got %d: %s", invalidPageResponse.Code, invalidPageResponse.Body.String())
+	}
+
 	federatedBody, _ := json.Marshal(ard.SearchRequest{
 		Query: ard.SearchQuery{
 			Text: "weather",
@@ -182,6 +263,9 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 		if request.Federation != "none" {
 			t.Fatalf("expected all upstream requests to use federation=none, got %#v", upstreamRequests)
 		}
+		if request.PageToken != "" {
+			t.Fatalf("expected upstream requests to omit local page token, got %#v", upstreamRequests)
+		}
 	}
 }
 
@@ -237,6 +321,35 @@ func TestRouterAgentsAndExploreWithPostgres(t *testing.T) {
 	}
 	if list.Total < 2 {
 		t.Fatalf("expected at least 2 entries, got total %d", list.Total)
+	}
+	pagedListRequest := httptest.NewRequest(http.MethodGet, "/agents?pageSize=1", nil)
+	pagedListResponse := httptest.NewRecorder()
+	router.ServeHTTP(pagedListResponse, pagedListRequest)
+	if pagedListResponse.Code != http.StatusOK {
+		t.Fatalf("expected paged /agents HTTP 200, got %d: %s", pagedListResponse.Code, pagedListResponse.Body.String())
+	}
+	var firstListPage ard.ListResponse
+	if err := json.Unmarshal(pagedListResponse.Body.Bytes(), &firstListPage); err != nil {
+		t.Fatalf("decode first list page: %v", err)
+	}
+	if len(firstListPage.Items) != 1 || firstListPage.PageToken == "" {
+		t.Fatalf("expected one list item and next token, got %#v", firstListPage)
+	}
+	nextListRequest := httptest.NewRequest(http.MethodGet, "/agents?pageSize=1&pageToken="+firstListPage.PageToken, nil)
+	nextListResponse := httptest.NewRecorder()
+	router.ServeHTTP(nextListResponse, nextListRequest)
+	if nextListResponse.Code != http.StatusOK {
+		t.Fatalf("expected second /agents page HTTP 200, got %d: %s", nextListResponse.Code, nextListResponse.Body.String())
+	}
+	var secondListPage ard.ListResponse
+	if err := json.Unmarshal(nextListResponse.Body.Bytes(), &secondListPage); err != nil {
+		t.Fatalf("decode second list page: %v", err)
+	}
+	if len(secondListPage.Items) != 1 {
+		t.Fatalf("expected one second-page list item, got %#v", secondListPage)
+	}
+	if firstListPage.Items[0].Identifier == secondListPage.Items[0].Identifier {
+		t.Fatalf("expected /agents page token to advance, got same identifier %s", secondListPage.Items[0].Identifier)
 	}
 
 	exploreBody, _ := json.Marshal(ard.ExploreRequest{

@@ -14,6 +14,7 @@ import (
 func newListCommand(root *rootOptions) *cobra.Command {
 	var kind string
 	var limit int
+	var pageToken string
 	var jsonOutput bool
 	command := &cobra.Command{
 		Use:   "list",
@@ -29,22 +30,23 @@ func newListCommand(root *rootOptions) *cobra.Command {
 				return err
 			}
 
-			entries, total, err := registryStore.ListEntries(ctx, store.ListOptions{
-				Limit: limit,
-				Type:  mediaTypeForKind(kind),
+			page, err := registryStore.ListEntriesPage(ctx, store.ListOptions{
+				Limit:     limit,
+				PageToken: pageToken,
+				Type:      mediaTypeForKind(kind),
 			})
 			if err != nil {
 				return err
 			}
 			if jsonOutput {
-				payload, err := json.MarshalIndent(ard.ListResponse{Items: entries, Total: int(total)}, "", "  ")
+				payload, err := json.MarshalIndent(ard.ListResponse{Items: page.Entries, Total: int(page.Total), PageToken: page.NextPageToken}, "", "  ")
 				if err != nil {
 					return err
 				}
 				fmt.Fprintln(cmd.OutOrStdout(), string(payload))
 				return nil
 			}
-			for _, entry := range entries {
+			for _, entry := range page.Entries {
 				fmt.Fprintf(cmd.OutOrStdout(), "%-52s  %-40s  %s\n", entry.Identifier, entry.Type, entry.DisplayName)
 			}
 			return nil
@@ -52,6 +54,7 @@ func newListCommand(root *rootOptions) *cobra.Command {
 	}
 	command.Flags().StringVar(&kind, "kind", "", "Filter by result kind: mcp, a2a, skill, catalog, registry")
 	command.Flags().IntVar(&limit, "limit", 20, "Maximum entries to list")
+	command.Flags().StringVar(&pageToken, "page-token", "", "Opaque page token returned by a previous list response")
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print machine-readable list response JSON")
 	return command
 }

@@ -231,6 +231,14 @@ bin/ardctl admin add a2a "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" 
 bin/ardctl admin list --kind mcp --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-list-mcp.json
 grep -q "Agentmemory MCP" /tmp/ard-e2e-list-mcp.json
 grep -q "Weather Data Node" /tmp/ard-e2e-list-mcp.json
+bin/ardctl admin list --registry-url "${registry_url}" --admin-token "${admin_token}" --limit 1 --json >/tmp/ard-e2e-admin-list-page1.json
+admin_page_token="$(python3 -c 'import json; print(json.load(open("/tmp/ard-e2e-admin-list-page1.json")).get("pageToken", ""))')"
+if [ -z "${admin_page_token}" ]; then
+  echo "admin list did not return a page token" >&2
+  exit 1
+fi
+bin/ardctl admin list --registry-url "${registry_url}" --admin-token "${admin_token}" --limit 1 --page-token "${admin_page_token}" --json >/tmp/ard-e2e-admin-list-page2.json
+grep -q '"items"' /tmp/ard-e2e-admin-list-page2.json
 bin/ardctl admin list --kind mcp --registry-url "${registry_url}" --admin-token "reader-token" --json >/tmp/ard-e2e-reader-list-mcp.json
 grep -q "Agentmemory MCP" /tmp/ard-e2e-reader-list-mcp.json
 if bin/ardctl admin remove urn:air:raw.githubusercontent.com:server:agentmemory-mcp \
@@ -257,6 +265,14 @@ if [ -x "${conformance_bin}" ]; then
 fi
 
 bin/ardctl search memory --registry-url "${registry_url}" --kind mcp --json | grep -q "Agentmemory MCP"
+bin/ardctl search agent --registry-url "${registry_url}" --limit 1 --json >/tmp/ard-e2e-search-page1.json
+search_page_token="$(python3 -c 'import json; print(json.load(open("/tmp/ard-e2e-search-page1.json")).get("pageToken", ""))')"
+if [ -z "${search_page_token}" ]; then
+  echo "search did not return a page token" >&2
+  exit 1
+fi
+bin/ardctl search agent --registry-url "${registry_url}" --limit 1 --page-token "${search_page_token}" --json >/tmp/ard-e2e-search-page2.json
+grep -q '"results"' /tmp/ard-e2e-search-page2.json
 bin/ardctl search memory --registry-url "${registry_url}" --kind mcp --federation referrals --json >/tmp/ard-e2e-referrals-search.json
 grep -q '"referrals"' /tmp/ard-e2e-referrals-search.json
 grep -q "E2E Upstream Registry" /tmp/ard-e2e-referrals-search.json

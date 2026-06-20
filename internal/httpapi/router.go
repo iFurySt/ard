@@ -9,6 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ifuryst/ard/internal/ard"
 	"github.com/ifuryst/ard/internal/federation"
+	"github.com/ifuryst/ard/internal/pagination"
 	"github.com/ifuryst/ard/internal/policy"
 	"github.com/ifuryst/ard/internal/store"
 )
@@ -124,15 +125,22 @@ func (server Server) search(context *gin.Context) {
 		})
 		return
 	}
-	results, err := server.store.Search(context.Request.Context(), request, "")
+	page, err := server.store.SearchPage(context.Request.Context(), request, "")
 	if err != nil {
+		if errors.Is(err, pagination.ErrInvalidToken) {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
 		})
 		return
 	}
-	response := ard.SearchResponse{Results: results}
+	response := ard.SearchResponse{Results: page.Results, PageToken: page.NextPageToken}
 	switch request.NormalizedFederation() {
 	case "referrals":
 		referrals, err := server.store.RegistryReferrals(context.Request.Context(), request.NormalizedPageSize())
@@ -154,7 +162,7 @@ func (server Server) search(context *gin.Context) {
 			return
 		}
 		upstreamResults := federation.NewClient().Search(context.Request.Context(), referrals, request)
-		response.Results = mergeSearchResults(results, upstreamResults, request.NormalizedPageSize())
+		response.Results = mergeSearchResults(page.Results, upstreamResults, request.NormalizedPageSize())
 	}
 	context.JSON(http.StatusOK, response)
 }
@@ -188,8 +196,18 @@ func mergeSearchResults(local []ard.SearchResult, upstream []ard.SearchResult, l
 
 func (server Server) agents(context *gin.Context) {
 	limit, _ := strconv.Atoi(context.DefaultQuery("pageSize", "20"))
-	entries, total, err := server.store.List(context.Request.Context(), limit)
+	page, err := server.store.ListEntriesPage(context.Request.Context(), store.ListOptions{
+		Limit:     limit,
+		PageToken: context.Query("pageToken"),
+	})
 	if err != nil {
+		if errors.Is(err, pagination.ErrInvalidToken) {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
@@ -197,8 +215,9 @@ func (server Server) agents(context *gin.Context) {
 		return
 	}
 	context.JSON(http.StatusOK, ard.ListResponse{
-		Items: entries,
-		Total: int(total),
+		Items:     page.Entries,
+		Total:     int(page.Total),
+		PageToken: page.NextPageToken,
 	})
 }
 
@@ -247,38 +266,54 @@ func (server Server) adminEntries(context *gin.Context) {
 		}
 		status = normalized
 	}
-	entries, total, err := server.store.ListEntries(context.Request.Context(), store.ListOptions{
+	page, err := server.store.ListEntriesPage(context.Request.Context(), store.ListOptions{
 		Limit:                    limit,
+		PageToken:                context.Query("pageToken"),
 		Type:                     mediaType,
 		Status:                   status,
 		IncludeInactive:          status == "",
 		IncludeLifecycleMetadata: true,
 	})
 	if err != nil {
+		if errors.Is(err, pagination.ErrInvalidToken) {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
 		})
 		return
 	}
-	context.JSON(http.StatusOK, ard.ListResponse{Items: entries, Total: int(total)})
+	context.JSON(http.StatusOK, ard.ListResponse{Items: page.Entries, Total: int(page.Total), PageToken: page.NextPageToken})
 }
 
 func (server Server) adminReviewEntries(context *gin.Context) {
 	limit, _ := strconv.Atoi(context.DefaultQuery("pageSize", "20"))
-	entries, total, err := server.store.ListEntries(context.Request.Context(), store.ListOptions{
+	page, err := server.store.ListEntriesPage(context.Request.Context(), store.ListOptions{
 		Limit:                    limit,
+		PageToken:                context.Query("pageToken"),
 		Status:                   store.LifecycleStatusPending,
 		IncludeLifecycleMetadata: true,
 	})
 	if err != nil {
+		if errors.Is(err, pagination.ErrInvalidToken) {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
 		})
 		return
 	}
-	context.JSON(http.StatusOK, ard.ListResponse{Items: entries, Total: int(total)})
+	context.JSON(http.StatusOK, ard.ListResponse{Items: page.Entries, Total: int(page.Total), PageToken: page.NextPageToken})
 }
 
 func (server Server) adminUpsertEntry(context *gin.Context) {

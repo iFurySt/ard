@@ -19,6 +19,7 @@ func newSearchCommand() *cobra.Command {
 	var jsonOutput bool
 	var limit int
 	var federation string
+	var pageToken string
 	command := &cobra.Command{
 		Use:   "search QUERY",
 		Short: "Search an ARD registry",
@@ -38,6 +39,7 @@ func newSearchCommand() *cobra.Command {
 				},
 				Federation: federation,
 				PageSize:   limit,
+				PageToken:  pageToken,
 			})
 			if err != nil {
 				return err
@@ -66,6 +68,7 @@ func newSearchCommand() *cobra.Command {
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print raw ARD SearchResponse JSON")
 	command.Flags().IntVar(&limit, "limit", 10, "Maximum search results")
 	command.Flags().StringVar(&federation, "federation", "none", "Federation mode: none, referrals, or auto")
+	command.Flags().StringVar(&pageToken, "page-token", "", "Opaque page token returned by a previous search")
 	return command
 }
 

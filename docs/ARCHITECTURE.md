@@ -17,6 +17,8 @@ Cobra, Gin, GORM, and Postgres.
   to the dedicated `ard-server` runtime entrypoint. `infra/compose.yaml` runs the
   registry with Postgres for local self-hosted trials.
 - Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
+- Pagination: `POST /search`, `GET /agents`, and admin list/review endpoints return
+  opaque offset page tokens when additional local results are available.
 - Federation referrals: `POST /search` supports `federation=referrals` by returning
   active `application/ai-registry+json` entries in `SearchResponse.referrals` for
   client-followed federation.
@@ -130,10 +132,13 @@ boundary without changing HTTP contracts.
   not execute tools.
 - Search and ranking should consume normalized catalog entries, not protocol-specific
   objects.
+- Page tokens are opaque implementation details. Do not expose raw database cursors or
+  require clients to parse token contents.
 - Federation traversal must stay bounded by depth, registry count, response size, and
   timeout controls. Auto federation currently queries at most three upstream registry
   referrals, uses non-recursive upstream search requests, limits response bodies, and
-  returns a local-first merged result set.
+  returns a local-first merged result set. Local page tokens are not forwarded to
+  upstream registries.
 - Secrets and tokens may be used during request scope only; they must not be stored or
   emitted in plain text.
 - Admin API routes must remain disabled by default and require an authorized
@@ -149,9 +154,11 @@ boundary without changing HTTP contracts.
 
 - `GET /.well-known/ai-catalog.json`: advertise this registry and any configured catalog
   entries. Implemented.
-- `POST /search`: ARD search endpoint. Implemented.
+- `POST /search`: ARD search endpoint with root-level `pageSize` and `pageToken`.
+  Implemented.
 - `POST /explore`: optional; implemented for local facet aggregation.
-- `GET /agents`: optional deterministic browse endpoint; implemented for basic listing.
+- `GET /agents`: optional deterministic browse endpoint with `pageSize` and `pageToken`.
+  Implemented for basic listing.
 - `GET /health`: deployment health. Implemented.
 - `GET /metrics`: Prometheus-style operational metrics. Implemented.
 - `/admin/*`: implementation-specific management routes; disabled unless an admin token
@@ -189,7 +196,7 @@ conformance tool over older reference implementations. In particular:
 - Keep federation controlled by root-level `SearchRequest.federation`. `referrals` mode
   returns registry entries in `SearchResponse.referrals`; `auto` mode performs a bounded
   server-side upstream merge. Upstream auto requests are sent with `federation=none` to
-  avoid recursive traversal.
+  avoid recursive traversal and without the local registry's page token.
 
 Do not vendor or fork the upstream spec content casually. If the implementation needs
 schemas or conformance tools in-repo, add a pinned, documented copy under a clearly named

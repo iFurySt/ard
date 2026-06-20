@@ -90,6 +90,7 @@ func newAdminListCommand(options *adminOptions) *cobra.Command {
 	var kind string
 	var status string
 	var limit int
+	var pageToken string
 	var jsonOutput bool
 	command := &cobra.Command{
 		Use:   "list",
@@ -104,6 +105,9 @@ func newAdminListCommand(options *adminOptions) *cobra.Command {
 			}
 			if limit > 0 {
 				query.Set("pageSize", fmt.Sprint(limit))
+			}
+			if pageToken != "" {
+				query.Set("pageToken", pageToken)
 			}
 			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/entries?"+query.Encode(), nil)
 			if err != nil {
@@ -133,6 +137,7 @@ func newAdminListCommand(options *adminOptions) *cobra.Command {
 	command.Flags().StringVar(&kind, "kind", "", "Filter by result kind: mcp, a2a, skill, catalog, registry")
 	command.Flags().StringVar(&status, "status", "", "Filter by lifecycle status: active, pending, disabled")
 	command.Flags().IntVar(&limit, "limit", 20, "Maximum entries to list")
+	command.Flags().StringVar(&pageToken, "page-token", "", "Opaque page token returned by a previous admin list response")
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print remote ListResponse JSON")
 	return command
 }
@@ -287,6 +292,7 @@ func newAdminReviewCommand(options *adminOptions) *cobra.Command {
 
 func newAdminReviewListCommand(options *adminOptions) *cobra.Command {
 	var limit int
+	var pageToken string
 	var jsonOutput bool
 	command := &cobra.Command{
 		Use:   "list",
@@ -295,6 +301,9 @@ func newAdminReviewListCommand(options *adminOptions) *cobra.Command {
 			query := url.Values{}
 			if limit > 0 {
 				query.Set("pageSize", fmt.Sprint(limit))
+			}
+			if pageToken != "" {
+				query.Set("pageToken", pageToken)
 			}
 			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/reviews?"+query.Encode(), nil)
 			if err != nil {
@@ -315,6 +324,7 @@ func newAdminReviewListCommand(options *adminOptions) *cobra.Command {
 		},
 	}
 	command.Flags().IntVar(&limit, "limit", 20, "Maximum pending entries to list")
+	command.Flags().StringVar(&pageToken, "page-token", "", "Opaque page token returned by a previous review list response")
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print remote ListResponse JSON")
 	return command
 }

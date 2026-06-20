@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/pagination"
 	"gorm.io/datatypes"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -78,12 +79,24 @@ type SearchOptions struct {
 	PageSize int
 }
 
+type SearchPage struct {
+	Results       []ard.SearchResult
+	NextPageToken string
+}
+
 type ListOptions struct {
 	Limit                    int
+	PageToken                string
 	Type                     string
 	Status                   string
 	IncludeInactive          bool
 	IncludeLifecycleMetadata bool
+}
+
+type ListEntriesPage struct {
+	Entries       []ard.CatalogEntry
+	Total         int64
+	NextPageToken string
 }
 
 func Open(databaseURL string) (*Store, error) {
@@ -146,17 +159,29 @@ func (store *Store) UpsertCatalogWithStatuses(ctx context.Context, catalog ard.C
 }
 
 func (store *Store) Search(ctx context.Context, request ard.SearchRequest, source string) ([]ard.SearchResult, error) {
-	limit := request.NormalizedPageSize()
-	records, err := store.matchingRecords(ctx, request.Query, source, limit*3)
+	page, err := store.SearchPage(ctx, request, source)
 	if err != nil {
 		return nil, err
+	}
+	return page.Results, nil
+}
+
+func (store *Store) SearchPage(ctx context.Context, request ard.SearchRequest, source string) (SearchPage, error) {
+	limit := request.NormalizedPageSize()
+	offset, err := pagination.Offset(request.PageToken)
+	if err != nil {
+		return SearchPage{}, err
+	}
+	records, err := store.matchingRecords(ctx, request.Query, source, 0)
+	if err != nil {
+		return SearchPage{}, err
 	}
 
 	results := make([]ard.SearchResult, 0, len(records))
 	for _, record := range records {
 		entry, err := record.ToCatalogEntry()
 		if err != nil {
-			return nil, err
+			return SearchPage{}, err
 		}
 		if !matchesFilter(entry, request.Query.Filter) {
 			continue
@@ -166,11 +191,18 @@ func (store *Store) Search(ctx context.Context, request ard.SearchRequest, sourc
 			Score:        relevanceScore(entry, request.Query.Text),
 			Source:       record.Source,
 		})
-		if len(results) >= limit {
-			break
-		}
 	}
-	return results, nil
+	if offset > len(results) {
+		offset = len(results)
+	}
+	end := offset + limit
+	nextToken := ""
+	if end < len(results) {
+		nextToken = pagination.Token(end)
+	} else {
+		end = len(results)
+	}
+	return SearchPage{Results: results[offset:end], NextPageToken: nextToken}, nil
 }
 
 func (store *Store) RegistryReferrals(ctx context.Context, limit int) ([]ard.CatalogEntry, error) {
@@ -202,9 +234,21 @@ func (store *Store) List(ctx context.Context, limit int) ([]ard.CatalogEntry, in
 }
 
 func (store *Store) ListEntries(ctx context.Context, options ListOptions) ([]ard.CatalogEntry, int64, error) {
+	page, err := store.ListEntriesPage(ctx, options)
+	if err != nil {
+		return nil, 0, err
+	}
+	return page.Entries, page.Total, nil
+}
+
+func (store *Store) ListEntriesPage(ctx context.Context, options ListOptions) (ListEntriesPage, error) {
 	limit := options.Limit
 	if limit <= 0 || limit > 100 {
 		limit = 20
+	}
+	offset, err := pagination.Offset(options.PageToken)
+	if err != nil {
+		return ListEntriesPage{}, err
 	}
 	listQuery := func() *gorm.DB {
 		query := store.db.WithContext(ctx).Model(&CatalogEntryRecord{})
@@ -220,21 +264,26 @@ func (store *Store) ListEntries(ctx context.Context, options ListOptions) ([]ard
 	}
 	var total int64
 	if err := listQuery().Count(&total).Error; err != nil {
-		return nil, 0, err
+		return ListEntriesPage{}, err
 	}
 	var records []CatalogEntryRecord
-	if err := listQuery().Order("display_name ASC").Limit(limit).Find(&records).Error; err != nil {
-		return nil, 0, err
+	if err := listQuery().Order("display_name ASC").Offset(offset).Limit(limit + 1).Find(&records).Error; err != nil {
+		return ListEntriesPage{}, err
+	}
+	nextToken := ""
+	if len(records) > limit {
+		nextToken = pagination.Token(offset + limit)
+		records = records[:limit]
 	}
 	entries := make([]ard.CatalogEntry, 0, len(records))
 	for _, record := range records {
 		entry, err := record.toCatalogEntry(options.IncludeLifecycleMetadata)
 		if err != nil {
-			return nil, 0, err
+			return ListEntriesPage{}, err
 		}
 		entries = append(entries, entry)
 	}
-	return entries, total, nil
+	return ListEntriesPage{Entries: entries, Total: total, NextPageToken: nextToken}, nil
 }
 
 func (store *Store) GetEntry(ctx context.Context, identifier string, includeLifecycleMetadata bool) (ard.CatalogEntry, bool, error) {

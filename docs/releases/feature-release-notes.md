@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Search | Clients can page through larger search and list responses instead of only receiving the first page. | Added opaque `pageToken` support for search, public listing, and admin list/review flows, plus CLI `--page-token` flags. |
 | 2026-06-20 | Deployment | Operators can build and verify a local containerized ARD registry backed by Postgres. | Added a Dockerfile, Docker Compose stack, `make docker-build`, `make test-compose`, and deployment documentation. |
 
 ## 2026-04
