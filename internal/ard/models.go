@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"mime"
 	"net/url"
 	"regexp"
 	"sort"
@@ -261,6 +262,9 @@ func ValidateCatalogEntry(entry CatalogEntry) error {
 	if entry.Type == "" {
 		return errors.New("type is required")
 	}
+	if err := validateMediaType(entry.Type); err != nil {
+		return fmt.Errorf("type is invalid: %w", err)
+	}
 	if (entry.URL == "") == (entry.Data == nil) {
 		return errors.New("exactly one of url or data must be present")
 	}
@@ -414,8 +418,10 @@ func validateTrustAttestations(value any) error {
 		} else if err := validateAbsoluteURI(uri); err != nil {
 			return fmt.Errorf("%s.uri is invalid: %w", path, err)
 		}
-		if _, err := requiredTrustString(attestation, "mediaType", path); err != nil {
+		if mediaType, err := requiredTrustString(attestation, "mediaType", path); err != nil {
 			return err
+		} else if err := validateMediaType(mediaType); err != nil {
+			return fmt.Errorf("%s.mediaType is invalid: %w", path, err)
 		}
 		if digest, ok, err := optionalTrustString(attestation, "digest", path); err != nil {
 			return err
@@ -467,6 +473,18 @@ func validateKnownFields(object map[string]any, allowed map[string]struct{}, pat
 	}
 	sort.Strings(unknown)
 	return fmt.Errorf("%s contains unsupported field %q", path, unknown[0])
+}
+
+func validateMediaType(value string) error {
+	mediaType, _, err := mime.ParseMediaType(value)
+	if err != nil {
+		return err
+	}
+	mediaTypeType, mediaTypeSubtype, ok := strings.Cut(mediaType, "/")
+	if !ok || mediaTypeType == "" || mediaTypeSubtype == "" {
+		return errors.New("must be an IANA-style media type")
+	}
+	return nil
 }
 
 func trustObjectList(value any, path string) ([]map[string]any, error) {

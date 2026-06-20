@@ -85,6 +85,25 @@ func TestValidateCatalogEntryRequiresAirURN(t *testing.T) {
 	}
 }
 
+func TestValidateCatalogEntryTypeRequiresMediaType(t *testing.T) {
+	entry := CatalogEntry{
+		Identifier:  "urn:air:acme.com:server:weather",
+		DisplayName: "Weather Data Node",
+		Type:        "mcp",
+		URL:         "https://api.acme.com/mcp/weather.json",
+	}
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected non-media type entry type to be rejected")
+	}
+
+	entry.Type = TypeAISkill
+	entry.URL = ""
+	entry.Data = map[string]any{"name": "open-browser-use"}
+	if err := ValidateCatalogEntry(entry); err != nil {
+		t.Fatalf("expected parameterized skill media type to validate: %v", err)
+	}
+}
+
 func TestValidateCatalogEntryRejectsLegacyAIURN(t *testing.T) {
 	entry := CatalogEntry{
 		Identifier:  "urn:ai:acme.com:server:weather",
@@ -408,6 +427,17 @@ func TestValidateCatalogEntryTrustManifestAttestations(t *testing.T) {
 	}
 	if err := ValidateCatalogEntry(entry); err == nil {
 		t.Fatal("expected invalid attestation digest to be rejected")
+	}
+
+	entry.TrustManifest["attestations"] = []any{
+		map[string]any{
+			"type":      "SOC2-Type2",
+			"uri":       "https://acme.com/audits/soc2.pdf",
+			"mediaType": "pdf",
+		},
+	}
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected non-media type attestation mediaType to be rejected")
 	}
 
 	entry.TrustManifest["attestations"] = []any{

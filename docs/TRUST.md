@@ -43,6 +43,8 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 ## Current Scope
 
 - Implemented: `trustManifest.identity` presence validation.
+- Implemented: catalog entry `type` media type syntax validation without enforcing a
+  fixed media type allowlist.
 - Implemented: catalog entry `url` validation for absolute HTTP(S) URLs.
 - Implemented: catalog `host` metadata validation for required display name, absolute
   documentation/logo URIs, and host-level `trustManifest` structure.
@@ -57,7 +59,7 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 - Implemented: URL `trustManifest.identity` host must match the `urn:air:` publisher
   domain.
 - Implemented: `trustManifest.attestations` structure validation for required fields,
-  absolute `uri` values, and optional `digest` format.
+  absolute `uri` values, `mediaType` syntax, and optional `digest` format.
 - Implemented: `trustManifest.provenance` structure validation for required fields,
   supported relation values, and optional `sourceDigest` format.
 - Implemented: `trustManifest.sourceDigest` type and format validation.

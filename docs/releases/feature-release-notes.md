@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Security | Catalog imports now reject malformed catalog and attestation media type values before persistence. | Added `type/subtype` syntax validation for catalog entry `type` and trust attestation `mediaType` fields without introducing a fixed media type allowlist. |
 | 2026-06-21 | Security | Catalog imports now reject unsupported trust metadata fields before persistence. | Added schema-aligned known-field validation for `trustManifest`, `trustSchema`, attestation, and provenance objects while preserving the documented `trustManifest.sourceDigest` extension. |
 | 2026-06-21 | Security | Catalog imports now reject duplicate entry identifiers before persistence. | Added catalog-level duplicate `identifier` validation so one import cannot define ambiguous entries with the same ARD URN. |
 | 2026-06-21 | Security | Catalog imports now reject malformed trust schema and signature metadata before persistence. | Added ARD schema-aligned `trustManifest.trustSchema` structure validation and `trustManifest.signature` type validation without attempting signature verification. |

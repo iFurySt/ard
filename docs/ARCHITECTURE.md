@@ -69,13 +69,13 @@ Cobra, Gin, GORM, and Postgres.
   `ard add openapi` translate real MCP server cards, A2A agent cards, Skill markdown
   files, and OpenAPI documents into ARD catalog entries.
 - Verification engine: schema-level checks cover `urn:air:`, required fields,
-  `url`/`data` exclusivity, absolute HTTP(S) URL syntax, `updatedAt` date-time format,
-  scalar metadata values, representative query count, duplicate catalog identifiers, and
-  minimal catalog host metadata plus `trustManifest` structure, including `identityType`
-  enum validation, schema-aligned known-field enforcement, `trustSchema`/signature shape
-  validation, attestation/provenance structure validation, and URL identity host
-  alignment with the `urn:air:` publisher. URL artifacts can be pinned and verified with
-  `trustManifest.sourceDigest`.
+  media type syntax, `url`/`data` exclusivity, absolute HTTP(S) URL syntax, `updatedAt`
+  date-time format, scalar metadata values, representative query count, duplicate
+  catalog identifiers, and minimal catalog host metadata plus `trustManifest` structure,
+  including `identityType` enum validation, schema-aligned known-field enforcement,
+  `trustSchema`/signature shape validation, attestation/provenance structure validation,
+  and URL identity host alignment with the `urn:air:` publisher. URL artifacts can be
+  pinned and verified with `trustManifest.sourceDigest`.
 
 ## Intended Repository Shape
 
@@ -130,9 +130,9 @@ boundary without changing HTTP contracts.
 1. A user adds, lists, removes, exports, or searches catalog entries with the CLI or API.
 2. The crawler fetches `/.well-known/ai-catalog.json` or a direct artifact URL.
 3. The adapter layer normalizes supported artifacts into ARD catalog entries.
-4. The verification layer validates schema, media type, `url`/`data` exclusivity,
-   domain-anchored `urn:air:` identifiers, duplicate identifiers within a catalog,
-   publisher domains, trust metadata, and optional URL source digests.
+4. The verification layer validates schema, media type syntax, `url`/`data`
+   exclusivity, domain-anchored `urn:air:` identifiers, duplicate identifiers within a
+   catalog, publisher domains, trust metadata, and optional URL source digests.
 5. The index layer stores normalized entries and searchable fields.
 6. `POST /search` accepts an ARD `SearchRequest` and returns a ranked `SearchResponse`.
 7. Clients fetch the selected artifact and execute it through its native protocol.
@@ -216,6 +216,8 @@ conformance tool over older reference implementations. In particular:
 - Treat OpenAPI artifact onboarding as an implementation extension using
   `application/openapi+json` until upstream ARD standardizes an OpenAPI discovery media
   type.
+- Validate catalog entry `type` values as media type syntax, not as a fixed allowlist.
+  This preserves extension media types while rejecting malformed envelope values.
 - Treat `trustManifest.sourceDigest` as source artifact integrity metadata. It verifies
   bytes fetched from the entry URL; it is not a signature or identity proof. This is an
   implementation extension to the ARD `trustManifest` schema.
