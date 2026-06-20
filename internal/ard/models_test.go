@@ -2,8 +2,57 @@ package ard
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 )
+
+func validCatalog() Catalog {
+	return Catalog{
+		SpecVersion: "1.0",
+		Entries: []CatalogEntry{
+			{
+				Identifier:  "urn:air:acme.com:server:weather",
+				DisplayName: "Weather Data Node",
+				Type:        TypeMCPServerCard,
+				URL:         "https://api.acme.com/mcp/weather.json",
+			},
+		},
+	}
+}
+
+func TestValidateCatalogHostInfo(t *testing.T) {
+	catalog := validCatalog()
+	catalog.Host = &HostInfo{
+		DisplayName:      "Acme Registry",
+		Identifier:       "did:web:acme.com",
+		DocumentationURL: "https://acme.com/docs/ai-catalog",
+		LogoURL:          "https://acme.com/logo.png",
+		TrustManifest: map[string]any{
+			"identity":     "https://registry.acme.com/security",
+			"identityType": "https",
+		},
+	}
+	if err := ValidateCatalog(catalog); err != nil {
+		t.Fatalf("expected valid host: %v", err)
+	}
+
+	catalog.Host.DisplayName = " "
+	if err := ValidateCatalog(catalog); err == nil || !strings.Contains(err.Error(), "host: displayName") {
+		t.Fatalf("expected missing host displayName to be rejected, got %v", err)
+	}
+
+	catalog.Host.DisplayName = "Acme Registry"
+	catalog.Host.DocumentationURL = "/docs"
+	if err := ValidateCatalog(catalog); err == nil || !strings.Contains(err.Error(), "host: documentationUrl") {
+		t.Fatalf("expected relative host documentationUrl to be rejected, got %v", err)
+	}
+
+	catalog.Host.DocumentationURL = "https://acme.com/docs/ai-catalog"
+	catalog.Host.TrustManifest["identityType"] = "x509"
+	if err := ValidateCatalog(catalog); err == nil || !strings.Contains(err.Error(), "trustManifest.identityType") {
+		t.Fatalf("expected invalid host trustManifest to be rejected, got %v", err)
+	}
+}
 
 func TestValidateCatalogEntryRequiresAirURN(t *testing.T) {
 	entry := CatalogEntry{

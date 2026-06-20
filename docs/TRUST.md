@@ -43,6 +43,8 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 ## Current Scope
 
 - Implemented: `trustManifest.identity` presence validation.
+- Implemented: catalog `host` metadata validation for required display name, absolute
+  documentation/logo URIs, and host-level `trustManifest` structure.
 - Implemented: `trustManifest.identityType` type and enum validation against the ARD
   schema values: `spiffe`, `did`, `https`, and `other`.
 - Implemented: URL `trustManifest.identity` host must match the `urn:air:` publisher
@@ -62,3 +64,5 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 URL identity host matching is a metadata consistency check. It rejects entries that claim
 `urn:air:acme.com:*` while pointing `trustManifest.identity` at a different HTTP(S)
 host. It does not prove domain ownership, certificate identity, or signature validity.
+Catalog host trust metadata is validated for shape and URI syntax only because
+`host.identifier` is not a catalog entry `urn:air:` identifier.

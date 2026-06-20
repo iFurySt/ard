@@ -182,6 +182,11 @@ func ValidateCatalog(catalog Catalog) error {
 	if catalog.SpecVersion != "1.0" {
 		return fmt.Errorf("specVersion must be 1.0")
 	}
+	if catalog.Host != nil {
+		if err := validateHostInfo(*catalog.Host); err != nil {
+			return fmt.Errorf("host: %w", err)
+		}
+	}
 	if len(catalog.Entries) == 0 {
 		return errors.New("entries must not be empty")
 	}
@@ -189,6 +194,26 @@ func ValidateCatalog(catalog Catalog) error {
 		if err := ValidateCatalogEntry(entry); err != nil {
 			return fmt.Errorf("entries[%d]: %w", index, err)
 		}
+	}
+	return nil
+}
+
+func validateHostInfo(host HostInfo) error {
+	if strings.TrimSpace(host.DisplayName) == "" {
+		return errors.New("displayName is required")
+	}
+	if host.DocumentationURL != "" {
+		if err := validateAbsoluteURI(host.DocumentationURL); err != nil {
+			return fmt.Errorf("documentationUrl is invalid: %w", err)
+		}
+	}
+	if host.LogoURL != "" {
+		if err := validateAbsoluteURI(host.LogoURL); err != nil {
+			return fmt.Errorf("logoUrl is invalid: %w", err)
+		}
+	}
+	if err := validateTrustManifest("", host.TrustManifest); err != nil {
+		return err
 	}
 	return nil
 }
@@ -235,8 +260,9 @@ func validateTrustManifest(identifier string, trustManifest map[string]any) erro
 			if parsed.Hostname() == "" {
 				return errors.New("trustManifest.identity URL must include a host")
 			}
-			if !strings.EqualFold(parsed.Hostname(), Publisher(identifier)) {
-				return fmt.Errorf("trustManifest.identity host %q must match identifier publisher %q", parsed.Hostname(), Publisher(identifier))
+			publisher := Publisher(identifier)
+			if publisher != "" && !strings.EqualFold(parsed.Hostname(), publisher) {
+				return fmt.Errorf("trustManifest.identity host %q must match identifier publisher %q", parsed.Hostname(), publisher)
 			}
 		}
 	}
