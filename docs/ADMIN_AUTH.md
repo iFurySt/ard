@@ -38,6 +38,11 @@ The file can also be selected with `ARD_ADMIN_TOKENS_FILE`.
 
 Do not commit real token files.
 
+Running servers reload the role token file when its modification time or size changes.
+Write rotations atomically in deployment automation, for example by writing a new file
+and renaming it over the old path. If a changed file is invalid, the server keeps the
+last valid token set until the file is fixed.
+
 ## Roles
 
 | Role | Allowed Admin Operations |
@@ -49,4 +54,6 @@ Do not commit real token files.
 | `admin` | All admin operations. |
 
 Tokens are matched with constant-time comparison. Token names and roles are for local
-authorization only; tokens are never logged, exported, or written to audit events.
+authorization only; tokens are never logged, exported, or written to audit events. The
+single `ARD_ADMIN_TOKEN` / `--admin-token` value is read at startup; use a role token
+file when runtime rotation is required.

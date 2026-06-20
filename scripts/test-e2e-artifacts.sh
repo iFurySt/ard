@@ -357,6 +357,34 @@ fi
 bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_token}" --limit 1 --page-token "${audit_page_token}" --json >/tmp/ard-e2e-audit-page2.json
 grep -q '"items"' /tmp/ard-e2e-audit-page2.json
 
+cat >"${tokens_file}" <<'JSON'
+{
+  "version": "1",
+  "tokens": [
+    {"name": "rotated-reader", "token": "rotated-reader-token", "role": "reader"}
+  ]
+}
+JSON
+rotated_token_ready=0
+for _ in $(seq 1 20); do
+  if bin/ardctl admin list --kind mcp --registry-url "${registry_url}" --admin-token "rotated-reader-token" --json >/tmp/ard-e2e-rotated-reader.json 2>/tmp/ard-e2e-rotated-reader.err; then
+    rotated_token_ready=1
+    break
+  fi
+  sleep 0.2
+done
+if [ "${rotated_token_ready}" != "1" ]; then
+  echo "rotated admin token did not become active" >&2
+  cat /tmp/ard-e2e-rotated-reader.err >&2 || true
+  exit 1
+fi
+grep -q "Weather Data Node" /tmp/ard-e2e-rotated-reader.json
+if bin/ardctl admin list --kind mcp --registry-url "${registry_url}" --admin-token "reader-token" --json >/tmp/ard-e2e-old-reader.json 2>/tmp/ard-e2e-old-reader.err; then
+  echo "old reader token remained active after token file rotation" >&2
+  exit 1
+fi
+grep -q "HTTP 401" /tmp/ard-e2e-old-reader.err
+
 bin/ardctl admin remove urn:air:raw.githubusercontent.com:server:agentmemory-mcp \
   --registry-url "${registry_url}" \
   --admin-token "${admin_token}" \

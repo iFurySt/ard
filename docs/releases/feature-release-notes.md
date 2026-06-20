@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Security | Operators can rotate role-scoped admin tokens without restarting the registry. | Added runtime reload for admin token files, preserving the last valid token set on invalid updates, with unit and real E2E coverage. |
 | 2026-06-21 | Operations | Operators can page through large admin audit trails instead of only reading the first batch. | Added opaque `pageToken` support to `/admin/audit` and `ardctl admin audit --page-token`, with integration and real E2E coverage. |
 | 2026-06-21 | Governance | Policy-pending updates to existing entries now require review before becoming publicly discoverable. | Updated catalog upsert lifecycle handling so pending/disabled policy results apply to existing entries, with integration and E2E coverage. |
 | 2026-06-21 | Search | Clients can page through larger search and list responses instead of only receiving the first page. | Added opaque `pageToken` support for search, public listing, and admin list/review flows, plus CLI `--page-token` flags. |

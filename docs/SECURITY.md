@@ -9,7 +9,8 @@ Use this document to make secure defaults explicit and legible to agents.
 - Set `ARD_ADMIN_TOKEN` or pass `--admin-token` to `ard serve` / `ard-server` to enable
   one full-access admin token.
 - Set `ARD_ADMIN_TOKENS_FILE` or pass `--admin-tokens-file` to enable role-scoped admin
-  tokens.
+  tokens. Running servers reload this file when it changes so operators can rotate
+  role tokens without restarting.
 - Admin requests must send `Authorization: Bearer <token>`.
 - Supported roles are `reader`, `publisher`, `reviewer`, `operator`, and `admin`.
 - Do not log, commit, export, or echo admin tokens.
@@ -78,7 +79,8 @@ Use this document to make secure defaults explicit and legible to agents.
 
 ## Current Gaps
 
-- No token rotation workflow yet.
+- Runtime rotation is limited to role-scoped token files; the single legacy admin token
+  is still static until restart.
 - No tamper-evident audit log yet.
 - No signed policy bundle or external policy engine yet.
 - No detached signature, DID, SPIFFE, certificate, or key-resolution verification yet.

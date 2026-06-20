@@ -22,9 +22,10 @@ type Server struct {
 }
 
 type Options struct {
-	AdminToken  string
-	AdminTokens []AdminToken
-	Policy      *policy.Policy
+	AdminToken      string
+	AdminTokens     []AdminToken
+	AdminTokensFile string
+	Policy          *policy.Policy
 }
 
 func NewRouter(store *store.Store) *gin.Engine {
@@ -43,7 +44,7 @@ func NewRouterWithOptions(store *store.Store, options Options) *gin.Engine {
 	}
 	server := Server{
 		store:            store,
-		adminAuthorizer:  newAdminAuthorizer(adminTokens),
+		adminAuthorizer:  newAdminAuthorizer(adminTokens, options.AdminTokensFile),
 		policy:           options.Policy,
 		metricsCollector: newMetricsCollector(),
 	}

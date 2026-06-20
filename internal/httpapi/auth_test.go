@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestLoadAdminTokensFile(t *testing.T) {
@@ -34,6 +35,61 @@ func TestNormalizeAdminTokensRejectsInvalidRole(t *testing.T) {
 	_, err := NormalizeAdminTokens([]AdminToken{{Name: "bad", Token: "bad-token", Role: "owner"}})
 	if err == nil {
 		t.Fatal("expected invalid role error")
+	}
+}
+
+func TestAdminAuthorizerReloadsTokenFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tokens.json")
+	if err := os.WriteFile(path, []byte(`{
+  "version": "1",
+  "tokens": [
+    {"name": "reader", "token": "reader-token", "role": "reader"}
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("write token file: %v", err)
+	}
+	authorizer := newAdminAuthorizer(nil, path)
+
+	if principal, ok := authorizer.authenticate("Bearer reader-token"); !ok || principal.Role != adminRoleReader {
+		t.Fatalf("expected initial reader token to authenticate, got %#v %v", principal, ok)
+	}
+
+	time.Sleep(10 * time.Millisecond)
+	if err := os.WriteFile(path, []byte(`{
+  "version": "1",
+  "tokens": [
+    {"name": "publisher", "token": "publisher-token-rotated", "role": "publisher"}
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("rotate token file: %v", err)
+	}
+
+	if _, ok := authorizer.authenticate("Bearer reader-token"); ok {
+		t.Fatal("expected removed reader token to stop authenticating after reload")
+	}
+	if principal, ok := authorizer.authenticate("Bearer publisher-token-rotated"); !ok || principal.Role != adminRolePublisher {
+		t.Fatalf("expected rotated publisher token to authenticate, got %#v %v", principal, ok)
+	}
+}
+
+func TestAdminAuthorizerKeepsLastGoodTokenFileOnReloadError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "tokens.json")
+	if err := os.WriteFile(path, []byte(`{
+  "version": "1",
+  "tokens": [
+    {"name": "reader", "token": "reader-token", "role": "reader"}
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("write token file: %v", err)
+	}
+	authorizer := newAdminAuthorizer(nil, path)
+
+	time.Sleep(10 * time.Millisecond)
+	if err := os.WriteFile(path, []byte(`{"version": "1", "tokens": [`), 0o600); err != nil {
+		t.Fatalf("write invalid token file: %v", err)
+	}
+	if principal, ok := authorizer.authenticate("Bearer reader-token"); !ok || principal.Role != adminRoleReader {
+		t.Fatalf("expected last good reader token to remain active, got %#v %v", principal, ok)
 	}
 }
 

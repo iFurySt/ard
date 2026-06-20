@@ -37,7 +37,8 @@ Expected environment:
 
 - `DATABASE_URL`: Postgres connection URL.
 - `ARD_ADMIN_TOKEN`: optional full-access admin token.
-- `ARD_ADMIN_TOKENS_FILE`: optional role-scoped token file path.
+- `ARD_ADMIN_TOKENS_FILE`: optional role-scoped token file path. The running server
+  reloads this file when it changes.
 - `ARD_POLICY_FILE`: optional ingestion policy file path.
 
 ## Compose
@@ -74,5 +75,7 @@ then removes the compose stack and volume.
 - Keep Postgres backups and migrations under the deployment owner's control.
 - Treat `ARD_ADMIN_TOKEN`, role token files, and policy files as deployment secrets or
   reviewed configuration.
+- Rotate role token files with an atomic write-and-rename so the server sees complete
+  JSON. Invalid updates are ignored and the last valid token set remains active.
 - The built image is a local distribution artifact today. Release publishing and signed
   provenance are still future supply-chain work.

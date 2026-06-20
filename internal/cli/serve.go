@@ -44,20 +44,21 @@ func runServer(cmd *cobra.Command, root *rootOptions, addr string) error {
 		loadedPolicy = &parsedPolicy
 	}
 
-	adminTokens, err := loadAdminTokens(root)
+	adminTokens, adminTokensFile, err := loadAdminAuthConfig(root)
 	if err != nil {
 		return err
 	}
 
 	router := httpapi.NewRouterWithOptions(registryStore, httpapi.Options{
-		AdminTokens: adminTokens,
-		Policy:      loadedPolicy,
+		AdminTokens:     adminTokens,
+		AdminTokensFile: adminTokensFile,
+		Policy:          loadedPolicy,
 	})
 	fmt.Fprintf(cmd.ErrOrStderr(), "listening on %s\n", addr)
 	return router.Run(addr)
 }
 
-func loadAdminTokens(root *rootOptions) ([]httpapi.AdminToken, error) {
+func loadAdminAuthConfig(root *rootOptions) ([]httpapi.AdminToken, string, error) {
 	var tokens []httpapi.AdminToken
 	if token := config.AdminToken(root.adminToken); token != "" {
 		tokens = append(tokens, httpapi.AdminToken{
@@ -66,7 +67,30 @@ func loadAdminTokens(root *rootOptions) ([]httpapi.AdminToken, error) {
 			Role:  "admin",
 		})
 	}
-	if tokensFile := config.AdminTokensFile(root.adminTokensFile); tokensFile != "" {
+	normalized, err := httpapi.NormalizeAdminTokens(tokens)
+	if err != nil {
+		return nil, "", fmt.Errorf("load admin tokens: %w", err)
+	}
+	tokensFile := config.AdminTokensFile(root.adminTokensFile)
+	if tokensFile != "" {
+		loadedTokens, err := httpapi.LoadAdminTokensFile(tokensFile)
+		if err != nil {
+			return nil, "", fmt.Errorf("load admin tokens: %w", err)
+		}
+		if _, err := httpapi.NormalizeAdminTokens(append(append([]httpapi.AdminToken{}, normalized...), loadedTokens...)); err != nil {
+			return nil, "", fmt.Errorf("load admin tokens: %w", err)
+		}
+	}
+	return normalized, tokensFile, nil
+}
+
+func loadAdminTokens(root *rootOptions) ([]httpapi.AdminToken, error) {
+	staticTokens, tokensFile, err := loadAdminAuthConfig(root)
+	if err != nil {
+		return nil, err
+	}
+	tokens := append([]httpapi.AdminToken{}, staticTokens...)
+	if tokensFile != "" {
 		loadedTokens, err := httpapi.LoadAdminTokensFile(tokensFile)
 		if err != nil {
 			return nil, fmt.Errorf("load admin tokens: %w", err)

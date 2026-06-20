@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -47,7 +49,13 @@ type adminPrincipal struct {
 const adminPrincipalKey = "admin_principal"
 
 type adminAuthorizer struct {
-	tokens []AdminToken
+	staticTokens []AdminToken
+	tokensFile   string
+	mutex        sync.RWMutex
+	fileTokens   []AdminToken
+	fileModTime  time.Time
+	fileSize     int64
+	fileLoaded   bool
 }
 
 func LoadAdminTokensFile(path string) ([]AdminToken, error) {
@@ -97,11 +105,16 @@ func NormalizeAdminTokens(tokens []AdminToken) ([]AdminToken, error) {
 	return normalized, nil
 }
 
-func newAdminAuthorizer(tokens []AdminToken) *adminAuthorizer {
-	if len(tokens) == 0 {
+func newAdminAuthorizer(tokens []AdminToken, tokensFile string) *adminAuthorizer {
+	tokensFile = strings.TrimSpace(tokensFile)
+	if len(tokens) == 0 && tokensFile == "" {
 		return nil
 	}
-	return &adminAuthorizer{tokens: tokens}
+	authorizer := &adminAuthorizer{staticTokens: tokens, tokensFile: tokensFile}
+	if tokensFile != "" {
+		_ = authorizer.reloadTokensFile(true)
+	}
+	return authorizer
 }
 
 func (authorizer *adminAuthorizer) authenticate(header string) (adminPrincipal, bool) {
@@ -110,7 +123,7 @@ func (authorizer *adminAuthorizer) authenticate(header string) (adminPrincipal, 
 		return adminPrincipal{}, false
 	}
 	got := strings.TrimPrefix(header, prefix)
-	for _, token := range authorizer.tokens {
+	for _, token := range authorizer.tokensSnapshot() {
 		if subtle.ConstantTimeCompare([]byte(got), []byte(token.Token)) == 1 {
 			return adminPrincipal{Name: token.Name, Role: token.Role}, true
 		}
@@ -140,6 +153,66 @@ func (authorizer *adminAuthorizer) require(permission adminPermission) gin.Handl
 		context.Set(adminPrincipalKey, principal)
 		context.Next()
 	}
+}
+
+func (authorizer *adminAuthorizer) tokensSnapshot() []AdminToken {
+	if authorizer.tokensFile != "" {
+		_ = authorizer.reloadTokensFile(false)
+	}
+	authorizer.mutex.RLock()
+	defer authorizer.mutex.RUnlock()
+	tokens := make([]AdminToken, 0, len(authorizer.staticTokens)+len(authorizer.fileTokens))
+	tokens = append(tokens, authorizer.staticTokens...)
+	tokens = append(tokens, authorizer.fileTokens...)
+	return tokens
+}
+
+func (authorizer *adminAuthorizer) reloadTokensFile(force bool) error {
+	info, err := os.Stat(authorizer.tokensFile)
+	if err != nil {
+		return err
+	}
+	modTime := info.ModTime()
+	size := info.Size()
+
+	authorizer.mutex.RLock()
+	unchanged := authorizer.fileLoaded && authorizer.fileModTime.Equal(modTime) && authorizer.fileSize == size
+	authorizer.mutex.RUnlock()
+	if unchanged && !force {
+		return nil
+	}
+
+	authorizer.mutex.Lock()
+	defer authorizer.mutex.Unlock()
+	if authorizer.fileLoaded && authorizer.fileModTime.Equal(modTime) && authorizer.fileSize == size && !force {
+		return nil
+	}
+	tokens, err := LoadAdminTokensFile(authorizer.tokensFile)
+	if err != nil {
+		return err
+	}
+	if err := validateNoDuplicateTokens(authorizer.staticTokens, tokens); err != nil {
+		return err
+	}
+	authorizer.fileTokens = tokens
+	authorizer.fileModTime = modTime
+	authorizer.fileSize = size
+	authorizer.fileLoaded = true
+	return nil
+}
+
+func validateNoDuplicateTokens(left []AdminToken, right []AdminToken) error {
+	seen := map[string]struct{}{}
+	for _, token := range left {
+		seen[token.Token] = struct{}{}
+	}
+	for _, token := range right {
+		if _, ok := seen[token.Token]; ok {
+			return fmt.Errorf("admin token %s duplicates another token", token.Name)
+		}
+		seen[token.Token] = struct{}{}
+	}
+	return nil
 }
 
 func normalizeAdminRole(role string) (string, error) {

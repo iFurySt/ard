@@ -37,7 +37,7 @@ Cobra, Gin, GORM, and Postgres.
   event listing, and deletion. `ardctl admin` is the first client for those remote routes.
 - Admin authorization: a single legacy admin token still grants full access. Optional
   role-scoped token files split admin access into `reader`, `publisher`, `reviewer`,
-  `operator`, and `admin` permissions.
+  `operator`, and `admin` permissions and are reloaded when the file changes.
 - Lifecycle governance: persisted entries have an implementation-owned lifecycle status
   of `active`, `pending`, or `disabled`. Public discovery, search, explore, and catalog
   export only expose `active` entries; admin list can include and filter all statuses.
@@ -144,6 +144,8 @@ boundary without changing HTTP contracts.
   emitted in plain text.
 - Admin API routes must remain disabled by default and require an authorized
   `Authorization: Bearer` token when enabled.
+- Role-scoped token file reloads must preserve the last valid token set if a changed file
+  is invalid, so a partial write does not lock operators out.
 - Inactive lifecycle states are implementation metadata, not ARD catalog schema fields.
   Do not export disabled or pending entries through public catalog/search surfaces.
 - Policy evaluation must happen before persistence for local add/crawl and remote admin

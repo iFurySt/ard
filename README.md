@@ -84,11 +84,12 @@ explore facets, catalog export, local listing, entry removal, and token-protecte
 API routes with an `ardctl admin` client. Admin flows can disable, reactivate, filter
 entries, apply ingestion policy, review pending entries, and inspect mutation audit
 events without exposing inactive resources through public discovery. Server deployments
-can use a single admin token or role-scoped admin tokens. URL artifacts can be pinned and
-verified with `trustManifest.sourceDigest`. Search supports client-followed federation
-referrals, bounded server-side `federation=auto` upstream result merging, and opaque
-`pageToken` pagination for search, list, review, and audit responses. The registry also
-exposes request correlation, JSON access logs, and Prometheus-style `/metrics`.
+can use a single admin token or reloadable role-scoped admin token files. URL artifacts
+can be pinned and verified with `trustManifest.sourceDigest`. Search supports
+client-followed federation referrals, bounded server-side `federation=auto` upstream
+result merging, and opaque `pageToken` pagination for search, list, review, and audit
+responses. The registry also exposes request correlation, JSON access logs, and
+Prometheus-style `/metrics`.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. CI runs formatting checks, tests,
 builds, and Postgres integration tests.
