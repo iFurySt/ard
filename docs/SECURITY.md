@@ -71,6 +71,7 @@ Use this document to make secure defaults explicit and legible to agents.
 - `GET /metrics` is public operational telemetry.
 - Metrics must use low-cardinality labels and must not expose bearer tokens, request
   bodies, user queries, identifiers, or artifact URLs.
+- HTTP duration histograms are labeled only by method, route template, and status.
 - Runtime metrics expose process-level goroutine, heap, and GC state only.
 - If deployment policy requires private metrics, restrict `/metrics` at the ingress or
   network layer.

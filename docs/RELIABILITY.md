@@ -32,8 +32,8 @@ Define the operational bar for the repository here.
 ## Metrics
 
 - `GET /metrics` returns Prometheus text format without requiring admin authentication.
-- Metrics include registry uptime, in-flight HTTP requests, request totals, and request
-  latency sums by method, route template, and status.
+- Metrics include registry uptime, in-flight HTTP requests, request totals, and HTTP
+  duration histograms by method, route template, and status.
 - Runtime metrics include goroutine count, heap allocation, heap system memory, next GC
   target, completed GC cycles, and the last GC timestamp.
 - Metrics labels must stay low-cardinality. Use route templates or `unmatched`, not raw
@@ -54,5 +54,5 @@ Define the operational bar for the repository here.
 
 ## Current Gaps
 
-- Histograms and tracing are not implemented yet.
+- Tracing is not implemented yet.
 - There is no documented dashboard or incident response workflow yet.

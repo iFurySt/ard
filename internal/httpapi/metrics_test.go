@@ -31,8 +31,17 @@ func TestMetricsEndpointRecordsRequests(t *testing.T) {
 	if !strings.Contains(body, "# TYPE ard_http_requests_total counter") {
 		t.Fatalf("expected request counter metadata in metrics body: %s", body)
 	}
+	if !strings.Contains(body, "# TYPE ard_http_request_duration_seconds histogram") {
+		t.Fatalf("expected request duration histogram metadata in metrics body: %s", body)
+	}
 	if !strings.Contains(body, `ard_http_requests_total{method="GET",route="unmatched",status="404"} 1`) {
 		t.Fatalf("expected unmatched 404 counter in metrics body: %s", body)
+	}
+	if !strings.Contains(body, `ard_http_request_duration_seconds_bucket{method="GET",route="unmatched",status="404",le="+Inf"} 1`) {
+		t.Fatalf("expected unmatched 404 duration histogram in metrics body: %s", body)
+	}
+	if !strings.Contains(body, `ard_http_request_duration_seconds_count{method="GET",route="unmatched",status="404"} 1`) {
+		t.Fatalf("expected unmatched 404 duration count in metrics body: %s", body)
 	}
 	if !strings.Contains(body, "ard_http_requests_in_flight") {
 		t.Fatalf("expected in-flight gauge in metrics body: %s", body)

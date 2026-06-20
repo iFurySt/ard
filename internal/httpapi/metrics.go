@@ -20,6 +20,7 @@ type metricsCollector struct {
 	mu        sync.Mutex
 	requests  map[metricsKey]uint64
 	latency   map[metricsKey]time.Duration
+	buckets   map[metricsKey][]uint64
 }
 
 type metricsKey struct {
@@ -33,6 +34,7 @@ func newMetricsCollector() *metricsCollector {
 		startedAt: time.Now().UTC(),
 		requests:  map[metricsKey]uint64{},
 		latency:   map[metricsKey]time.Duration{},
+		buckets:   map[metricsKey][]uint64{},
 	}
 }
 
@@ -59,6 +61,15 @@ func (metrics *metricsCollector) record(method string, route string, status int,
 	defer metrics.mu.Unlock()
 	metrics.requests[key]++
 	metrics.latency[key] += latency
+	if _, ok := metrics.buckets[key]; !ok {
+		metrics.buckets[key] = make([]uint64, len(httpRequestDurationBuckets))
+	}
+	seconds := latency.Seconds()
+	for index, bucket := range httpRequestDurationBuckets {
+		if seconds <= bucket {
+			metrics.buckets[key][index]++
+		}
+	}
 }
 
 func (metrics *metricsCollector) render() string {
@@ -66,12 +77,16 @@ func (metrics *metricsCollector) render() string {
 	keys := make([]metricsKey, 0, len(metrics.requests))
 	requests := make(map[metricsKey]uint64, len(metrics.requests))
 	latency := make(map[metricsKey]time.Duration, len(metrics.latency))
+	buckets := make(map[metricsKey][]uint64, len(metrics.buckets))
 	for key, value := range metrics.requests {
 		keys = append(keys, key)
 		requests[key] = value
 	}
 	for key, value := range metrics.latency {
 		latency[key] = value
+	}
+	for key, value := range metrics.buckets {
+		buckets[key] = append([]uint64(nil), value...)
 	}
 	metrics.mu.Unlock()
 
@@ -98,10 +113,22 @@ func (metrics *metricsCollector) render() string {
 	for _, key := range keys {
 		fmt.Fprintf(&builder, "ard_http_requests_total{%s} %d\n", metricLabels(key), requests[key])
 	}
-	builder.WriteString("# HELP ard_http_request_duration_seconds_sum Total HTTP request duration by method, route, and status.\n")
-	builder.WriteString("# TYPE ard_http_request_duration_seconds_sum counter\n")
+	builder.WriteString("# HELP ard_http_request_duration_seconds HTTP request duration by method, route, and status.\n")
+	builder.WriteString("# TYPE ard_http_request_duration_seconds histogram\n")
 	for _, key := range keys {
-		fmt.Fprintf(&builder, "ard_http_request_duration_seconds_sum{%s} %.9f\n", metricLabels(key), latency[key].Seconds())
+		labels := metricLabels(key)
+		for index, bucket := range httpRequestDurationBuckets {
+			fmt.Fprintf(
+				&builder,
+				"ard_http_request_duration_seconds_bucket{%s,le=%s} %d\n",
+				labels,
+				strconv.Quote(formatBucket(bucket)),
+				buckets[key][index],
+			)
+		}
+		fmt.Fprintf(&builder, "ard_http_request_duration_seconds_bucket{%s,le=\"+Inf\"} %d\n", labels, requests[key])
+		fmt.Fprintf(&builder, "ard_http_request_duration_seconds_sum{%s} %.9f\n", labels, latency[key].Seconds())
+		fmt.Fprintf(&builder, "ard_http_request_duration_seconds_count{%s} %d\n", labels, requests[key])
 	}
 	return builder.String()
 }
@@ -148,4 +175,22 @@ func metricLabels(key metricsKey) string {
 		strconv.Quote(key.route),
 		strconv.Quote(strconv.Itoa(key.status)),
 	)
+}
+
+var httpRequestDurationBuckets = []float64{
+	0.005,
+	0.01,
+	0.025,
+	0.05,
+	0.1,
+	0.25,
+	0.5,
+	1,
+	2.5,
+	5,
+	10,
+}
+
+func formatBucket(value float64) string {
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }

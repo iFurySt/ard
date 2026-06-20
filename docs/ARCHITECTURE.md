@@ -56,8 +56,8 @@ Cobra, Gin, GORM, and Postgres.
   events. Shared request-ID context propagation also covers outbound catalog/artifact
   fetches and source digest verification.
 - Metrics: Gin exposes public Prometheus-style `/metrics` with process uptime,
-  in-flight requests, request totals, request latency sums by method, route, and status,
-  plus low-cardinality Go runtime gauges for goroutines, heap, and GC state.
+  in-flight requests, request totals, HTTP duration histograms by method, route, and
+  status, plus low-cardinality Go runtime gauges for goroutines, heap, and GC state.
 - Artifact onboarding: `ard add mcp`, `ard add a2a`, `ard add skill`, and
   `ard add openapi` translate real MCP server cards, A2A agent cards, Skill markdown
   files, and OpenAPI documents into ARD catalog entries.

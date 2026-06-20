@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Observability | Operators can inspect HTTP latency distribution from the existing metrics endpoint. | Added low-cardinality Prometheus histogram buckets for HTTP request duration by method, route template, and status, with unit and compose coverage. |
 | 2026-06-21 | Observability | Operators can inspect process-level runtime pressure from the existing metrics endpoint. | Added Go runtime gauges for goroutines, heap allocation, heap system memory, next GC target, GC cycles, and last GC time, with unit and compose coverage. |
 | 2026-06-21 | Observability | Operators can correlate remote artifact fetches with the admin API mutations they trigger. | Added shared request-ID context propagation for catalog/artifact/source-digest fetches and `ardctl admin --request-id`, with unit and real E2E coverage. |
 | 2026-06-21 | Observability | Operators can correlate local and upstream logs for server-side federated searches. | Propagated inbound `X-Request-ID` to bounded `federation=auto` upstream requests, with unit, integration, and real E2E coverage. |
