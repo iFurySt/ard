@@ -124,7 +124,7 @@ class Handler(BaseHTTPRequestHandler):
                     "type": "application/mcp-server-card+json",
                     "url": "https://upstream.localhost/mcp/weather.json",
                     "description": "MCP result returned by the E2E upstream registry.",
-                    "score": 71,
+                    "score": 90,
                     "source": "e2e-upstream"
                 }
             ]
@@ -310,6 +310,14 @@ grep -q '"referrals"' /tmp/ard-e2e-referrals-search.json
 grep -q "E2E Upstream Registry" /tmp/ard-e2e-referrals-search.json
 bin/ardctl search federated --registry-url "${registry_url}" --kind mcp --federation auto --json >/tmp/ard-e2e-auto-search.json
 grep -q "Federated Weather MCP" /tmp/ard-e2e-auto-search.json
+bin/ardctl search "weather federated" --registry-url "${registry_url}" --kind mcp --federation auto --json >/tmp/ard-e2e-auto-ranked-search.json
+python3 - <<'PY'
+import json
+data = json.load(open("/tmp/ard-e2e-auto-ranked-search.json"))
+first = data["results"][0]["displayName"]
+if first != "Federated Weather MCP":
+    raise SystemExit(f"expected upstream ranked first, got {first!r}")
+PY
 curl -fsS \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: ard-e2e-auto-federation" \

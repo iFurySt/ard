@@ -3,6 +3,7 @@ package httpapi
 import (
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -173,25 +174,55 @@ func mergeSearchResults(local []ard.SearchResult, upstream []ard.SearchResult, l
 	if limit <= 0 {
 		limit = 10
 	}
+	type candidate struct {
+		result ard.SearchResult
+		local  bool
+		order  int
+	}
 	seen := map[string]struct{}{}
-	results := make([]ard.SearchResult, 0, limit)
-	appendResult := func(result ard.SearchResult) {
-		if len(results) >= limit {
-			return
-		}
+	candidates := make([]candidate, 0, len(local)+len(upstream))
+	appendResult := func(result ard.SearchResult, local bool) {
 		if result.Identifier != "" {
 			if _, ok := seen[result.Identifier]; ok {
 				return
 			}
 			seen[result.Identifier] = struct{}{}
 		}
-		results = append(results, result)
+		candidates = append(candidates, candidate{
+			result: result,
+			local:  local,
+			order:  len(candidates),
+		})
 	}
 	for _, result := range local {
-		appendResult(result)
+		appendResult(result, true)
 	}
 	for _, result := range upstream {
-		appendResult(result)
+		appendResult(result, false)
+	}
+	sort.SliceStable(candidates, func(i int, j int) bool {
+		left := candidates[i]
+		right := candidates[j]
+		if left.result.Score != right.result.Score {
+			return left.result.Score > right.result.Score
+		}
+		if left.local != right.local {
+			return left.local
+		}
+		if left.result.Identifier != right.result.Identifier {
+			return left.result.Identifier < right.result.Identifier
+		}
+		if left.result.DisplayName != right.result.DisplayName {
+			return left.result.DisplayName < right.result.DisplayName
+		}
+		return left.order < right.order
+	})
+	if len(candidates) > limit {
+		candidates = candidates[:limit]
+	}
+	results := make([]ard.SearchResult, 0, len(candidates))
+	for _, candidate := range candidates {
+		results = append(results, candidate.result)
 	}
 	return results
 }

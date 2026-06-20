@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Search | Auto-federated search results are ranked by semantic score across local and upstream registries. | Changed `federation=auto` merge behavior from local-first to score-ranked with local duplicate preference, with unit, integration, and real E2E coverage. |
 | 2026-06-21 | Observability | Operators can correlate registry work with upstream services using standard trace context. | Added W3C `traceparent` handling for inbound HTTP, JSON access logs, federation, catalog/artifact fetches, source digest verification, and admin client requests, with unit and real E2E coverage. |
 | 2026-06-21 | Observability | Operators can inspect HTTP latency distribution from the existing metrics endpoint. | Added low-cardinality Prometheus histogram buckets for HTTP request duration by method, route template, and status, with unit and compose coverage. |
 | 2026-06-21 | Observability | Operators can inspect process-level runtime pressure from the existing metrics endpoint. | Added Go runtime gauges for goroutines, heap allocation, heap system memory, next GC target, GC cycles, and last GC time, with unit and compose coverage. |

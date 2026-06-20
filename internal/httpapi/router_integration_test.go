@@ -60,7 +60,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 						Type:        ard.TypeMCPServerCard,
 						URL:         "https://upstream.example.com/mcp/weather.json",
 					},
-					Score:  72,
+					Score:  90,
 					Source: "upstream-test",
 				},
 			},
@@ -231,7 +231,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 
 	autoBody, _ := json.Marshal(ard.SearchRequest{
 		Query: ard.SearchQuery{
-			Text: "weather",
+			Text: "weather remote",
 		},
 		Federation: "auto",
 		PageSize:   5,
@@ -247,6 +247,9 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	var auto ard.SearchResponse
 	if err := json.Unmarshal(autoResponse.Body.Bytes(), &auto); err != nil {
 		t.Fatalf("decode auto federation response: %v", err)
+	}
+	if len(auto.Results) == 0 || auto.Results[0].Identifier != "urn:air:upstream.example.com:server:remote-weather" {
+		t.Fatalf("expected high-scoring upstream result first, got %#v", auto.Results)
 	}
 	foundRemote := false
 	for _, result := range auto.Results {
