@@ -30,7 +30,7 @@ harness-cli init --language en
 
 ## License
 
-[MIT](LICENSE)
+[Apache-2.0](LICENSE)
 
 ## Note
 
