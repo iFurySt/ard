@@ -2,6 +2,10 @@ package cli
 
 import (
 	"bytes"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,4 +40,87 @@ func TestVerifyCatalogRequiresSourceDigests(t *testing.T) {
 	if !strings.Contains(err.Error(), "sourceDigest required for url delivery") {
 		t.Fatalf("unexpected error: %v", err)
 	}
+}
+
+func TestVerifyCatalogVerifiesJWSSignatures(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	tempDir := t.TempDir()
+	anchorsPath := filepath.Join(tempDir, "anchors.json")
+	if err := os.WriteFile(anchorsPath, []byte(`{
+  "keys": [
+    {
+      "kid": "acme-ed25519",
+      "alg": "EdDSA",
+      "publicKey": "`+base64.RawURLEncoding.EncodeToString(publicKey)+`"
+    }
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("write anchors: %v", err)
+	}
+
+	trustManifest := map[string]any{
+		"identity":     "https://example.com",
+		"identityType": "https",
+	}
+	trustManifest["signature"] = cliTestDetachedJWS(t, "acme-ed25519", trustManifest, privateKey)
+	catalog := map[string]any{
+		"specVersion": "1.0",
+		"entries": []map[string]any{
+			{
+				"identifier":    "urn:air:example.com:agent:weather",
+				"displayName":   "Weather",
+				"type":          "application/a2a-agent-card+json",
+				"url":           "https://example.com/agent-card.json",
+				"trustManifest": trustManifest,
+			},
+		},
+	}
+	catalogData, err := json.MarshalIndent(catalog, "", "  ")
+	if err != nil {
+		t.Fatalf("marshal catalog: %v", err)
+	}
+	catalogPath := filepath.Join(tempDir, "ai-catalog.json")
+	if err := os.WriteFile(catalogPath, catalogData, 0o600); err != nil {
+		t.Fatalf("write catalog: %v", err)
+	}
+
+	command := NewRootCommand()
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetErr(&output)
+	command.SetArgs([]string{"verify", "catalog", catalogPath, "--jws-trust-anchors", anchorsPath, "--require-jws-signatures", "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("execute verify: %v", err)
+	}
+	if !strings.Contains(output.String(), `"signaturesVerified": 1`) {
+		t.Fatalf("expected signature verification output, got %s", output.String())
+	}
+}
+
+func cliTestDetachedJWS(t *testing.T, keyID string, trustManifest map[string]any, privateKey ed25519.PrivateKey) string {
+	t.Helper()
+	protected, err := json.Marshal(map[string]string{
+		"alg": "EdDSA",
+		"kid": keyID,
+	})
+	if err != nil {
+		t.Fatalf("marshal protected header: %v", err)
+	}
+	protectedPart := base64.RawURLEncoding.EncodeToString(protected)
+	payload := make(map[string]any, len(trustManifest))
+	for key, value := range trustManifest {
+		if key != "signature" {
+			payload[key] = value
+		}
+	}
+	payloadData, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("marshal payload: %v", err)
+	}
+	signingInput := []byte(protectedPart + "." + base64.RawURLEncoding.EncodeToString(payloadData))
+	signature := ed25519.Sign(privateKey, signingInput)
+	return protectedPart + ".." + base64.RawURLEncoding.EncodeToString(signature)
 }

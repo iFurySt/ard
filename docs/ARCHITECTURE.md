@@ -106,7 +106,9 @@ Cobra, Gin, GORM, and Postgres.
   validation, attestation/provenance structure validation, and URL identity host
   alignment with the `urn:air:` publisher. URL artifacts can be pinned and verified with
   `trustManifest.sourceDigest`, and strict verification can require all URL-delivered
-  entries to carry pinned source digests.
+  entries to carry pinned source digests. Detached compact JWS `trustManifest.signature`
+  values can be verified against explicit Ed25519 trust anchors, and strict verification
+  can require every catalog entry to carry a verifiable signature.
 
 ## Intended Repository Shape
 
@@ -281,6 +283,10 @@ conformance tool over older reference implementations. In particular:
 - Treat `trustManifest.sourceDigest` as source artifact integrity metadata. It verifies
   bytes fetched from the entry URL; it is not a signature or identity proof. This is an
   implementation extension to the ARD `trustManifest` schema.
+- Treat detached compact JWS verification as explicit operator trust-anchor verification.
+  It proves the configured Ed25519 key signed the canonical `trustManifest` payload with
+  `signature` removed; it is not automatic DID, SPIFFE, certificate, or key-discovery
+  verification.
 - Treat HTTP(S) `trustManifest.identity` host matching as catalog metadata consistency,
   not as proof of publisher ownership.
 - Keep `score` strictly as semantic relevance, not a trust or safety signal.
@@ -298,7 +304,7 @@ third-party or generated directory and record the source commit.
 
 ## Open Decisions
 
-- Trust manifest verification depth for MVP.
+- DID, SPIFFE, certificate, and trust-anchor discovery depth for MVP.
 - Whether to add an embedded non-Postgres development mode.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.

@@ -23,6 +23,8 @@ func newVerifyCatalogCommand() *cobra.Command {
 	var jsonOutput bool
 	var verifySourceDigests bool
 	var requireSourceDigests bool
+	var jwsTrustAnchors string
+	var requireJWSSignatures bool
 	command := &cobra.Command{
 		Use:   "catalog SOURCE",
 		Short: "Verify an ai-catalog.json file or URL",
@@ -43,12 +45,31 @@ func newVerifyCatalogCommand() *cobra.Command {
 				}
 				sourceDigestResults = results
 			}
+			signatureResults := []verify.SignatureResult{}
+			if jwsTrustAnchors != "" || requireJWSSignatures {
+				if jwsTrustAnchors == "" {
+					return fmt.Errorf("--jws-trust-anchors is required when verifying JWS signatures")
+				}
+				anchors, err := verify.LoadTrustAnchors(jwsTrustAnchors)
+				if err != nil {
+					return err
+				}
+				results, err := verify.VerifySignatures(loadedCatalog, verify.SignatureOptions{
+					RequireSignatures: requireJWSSignatures,
+					TrustAnchors:      anchors,
+				})
+				if err != nil {
+					return err
+				}
+				signatureResults = results
+			}
 			if jsonOutput {
 				payload := map[string]any{
 					"valid":                 true,
 					"specVersion":           loadedCatalog.SpecVersion,
 					"entries":               len(loadedCatalog.Entries),
 					"sourceDigestsVerified": len(sourceDigestResults),
+					"signaturesVerified":    len(signatureResults),
 				}
 				if verifySourceDigests {
 					payload["sourceDigests"] = sourceDigestResults
@@ -56,6 +77,13 @@ func newVerifyCatalogCommand() *cobra.Command {
 				if requireSourceDigests {
 					payload["sourceDigestsRequired"] = true
 					payload["sourceDigests"] = sourceDigestResults
+				}
+				if jwsTrustAnchors != "" {
+					payload["signatures"] = signatureResults
+				}
+				if requireJWSSignatures {
+					payload["signaturesRequired"] = true
+					payload["signatures"] = signatureResults
 				}
 				encoded, err := json.MarshalIndent(payload, "", "  ")
 				if err != nil {
@@ -75,11 +103,19 @@ func newVerifyCatalogCommand() *cobra.Command {
 			if requireSourceDigests {
 				fmt.Fprintf(cmd.OutOrStdout(), "required source digests: true\n")
 			}
+			if jwsTrustAnchors != "" || requireJWSSignatures {
+				fmt.Fprintf(cmd.OutOrStdout(), "verified signatures: %d\n", len(signatureResults))
+			}
+			if requireJWSSignatures {
+				fmt.Fprintf(cmd.OutOrStdout(), "required signatures: true\n")
+			}
 			return nil
 		},
 	}
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print machine-readable verification result")
 	command.Flags().BoolVar(&verifySourceDigests, "source-digests", false, "Fetch URL artifacts and verify trustManifest.sourceDigest")
 	command.Flags().BoolVar(&requireSourceDigests, "require-source-digests", false, "Require every URL artifact to have trustManifest.sourceDigest and verify it")
+	command.Flags().StringVar(&jwsTrustAnchors, "jws-trust-anchors", "", "JSON trust anchors for verifying detached JWS trustManifest.signature values")
+	command.Flags().BoolVar(&requireJWSSignatures, "require-jws-signatures", false, "Require every catalog entry to have a verifiable detached JWS trustManifest.signature")
 	return command
 }
