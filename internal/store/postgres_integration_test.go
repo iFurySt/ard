@@ -249,6 +249,21 @@ func TestPostgresImportAndSearch(t *testing.T) {
 		t.Fatalf("expected rich filtered weather entry, got %#v", richFilteredListed)
 	}
 
+	groupedFilter, err := ParseListFilterExpression("(type = 'application/a2a-agent-card+json' AND publisherId = 'acme.com') OR (displayName contains 'Weather' AND metadata.tier = 'gold')")
+	if err != nil {
+		t.Fatalf("parse grouped list filter: %v", err)
+	}
+	groupedFilteredListed, _, err := registryStore.ListEntries(ctx, ListOptions{
+		Limit:  10,
+		Filter: groupedFilter,
+	})
+	if err != nil {
+		t.Fatalf("list entries with grouped filters: %v", err)
+	}
+	if !containsCatalogEntry(groupedFilteredListed, "urn:air:acme.com:agent:assistant") || !containsCatalogEntry(groupedFilteredListed, "urn:air:acme.com:server:weather") {
+		t.Fatalf("expected grouped filter to return weather plus Acme A2A entry, got %#v", groupedFilteredListed)
+	}
+
 	governedCatalog := ard.Catalog{
 		SpecVersion: "1.0",
 		Entries: []ard.CatalogEntry{
@@ -337,6 +352,15 @@ func TestPostgresImportAndSearch(t *testing.T) {
 	if removed {
 		t.Fatal("expected second delete to report missing entry")
 	}
+}
+
+func containsCatalogEntry(entries []ard.CatalogEntry, identifier string) bool {
+	for _, entry := range entries {
+		if entry.Identifier == identifier {
+			return true
+		}
+	}
+	return false
 }
 
 func TestPostgresAuditHashChainVerification(t *testing.T) {

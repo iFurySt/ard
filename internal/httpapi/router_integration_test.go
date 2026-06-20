@@ -562,6 +562,20 @@ func TestRouterAgentsAndExploreWithPostgres(t *testing.T) {
 		t.Fatalf("expected rich-filtered list to return Weather Facet MCP, got %#v", richFilteredList.Items)
 	}
 
+	groupedFilteredListRequest := httptest.NewRequest(http.MethodGet, "/agents?filter="+url.QueryEscape("type = 'application/a2a-agent-card+json' OR (tags = 'weather' AND metadata.domain = 'weather')"), nil)
+	groupedFilteredListResponse := httptest.NewRecorder()
+	router.ServeHTTP(groupedFilteredListResponse, groupedFilteredListRequest)
+	if groupedFilteredListResponse.Code != http.StatusOK {
+		t.Fatalf("expected grouped-filtered /agents HTTP 200, got %d: %s", groupedFilteredListResponse.Code, groupedFilteredListResponse.Body.String())
+	}
+	var groupedFilteredList ard.ListResponse
+	if err := json.Unmarshal(groupedFilteredListResponse.Body.Bytes(), &groupedFilteredList); err != nil {
+		t.Fatalf("decode grouped-filtered list response: %v", err)
+	}
+	if !containsHTTPListEntry(groupedFilteredList.Items, "urn:air:example.com:agent:travel") || !containsHTTPListEntry(groupedFilteredList.Items, "urn:air:example.com:server:weather-facet") {
+		t.Fatalf("expected grouped-filtered list to return Travel Agent plus Weather Facet entries, got %#v", groupedFilteredList.Items)
+	}
+
 	publisherOrderedListRequest := httptest.NewRequest(http.MethodGet, "/agents?filter="+url.QueryEscape("publisherId = 'example.com'")+"&orderBy="+url.QueryEscape("displayName DESC"), nil)
 	publisherOrderedListResponse := httptest.NewRecorder()
 	router.ServeHTTP(publisherOrderedListResponse, publisherOrderedListRequest)
@@ -653,6 +667,15 @@ func TestRouterAgentsAndExploreWithPostgres(t *testing.T) {
 	if !bytes.Contains(emptyExploreFacetResponse.Body.Bytes(), []byte("resultType.facets[0].field is required")) {
 		t.Fatalf("expected empty facet field message, got %s", emptyExploreFacetResponse.Body.String())
 	}
+}
+
+func containsHTTPListEntry(entries []ard.CatalogEntry, identifier string) bool {
+	for _, entry := range entries {
+		if entry.Identifier == identifier {
+			return true
+		}
+	}
+	return false
 }
 
 func TestRouterAdminAPIWithPostgres(t *testing.T) {

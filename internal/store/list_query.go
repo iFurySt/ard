@@ -12,106 +12,361 @@ func ParseListFilterExpression(expression string) (ListFilter, error) {
 	if strings.TrimSpace(expression) == "" {
 		return filter, nil
 	}
-	clauses := splitListFilterClauses(expression)
-	if len(clauses) == 0 {
-		return filter, errors.New("filter must not be empty")
+	tokens, err := tokenizeListFilterExpression(expression)
+	if err != nil {
+		return ListFilter{}, err
 	}
-	for _, clause := range clauses {
-		field, operator, rawValues, err := splitListFilterClause(clause)
-		if err != nil {
-			return ListFilter{}, err
-		}
-		values, err := parseListFilterValues(rawValues)
-		if err != nil {
-			return ListFilter{}, err
-		}
-		switch field {
-		case "displayName":
-			if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
-				return ListFilter{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
-			}
-			filter.Clauses = append(filter.Clauses, listFilterClause(field, "", operator, values))
-			if operator == "=" {
-				filter.DisplayName = append(filter.DisplayName, values...)
-			}
-		case "type":
-			if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
-				return ListFilter{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
-			}
-			filter.Clauses = append(filter.Clauses, listFilterClause(field, "", operator, values))
-			if operator == "=" {
-				filter.Types = append(filter.Types, values...)
-			}
-		case "publisherId":
-			if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
-				return ListFilter{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
-			}
-			filter.Clauses = append(filter.Clauses, listFilterClause(field, "", operator, values))
-			if operator == "=" {
-				filter.PublisherIDs = append(filter.PublisherIDs, values...)
-			}
-		case "tags":
-			if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
-				return ListFilter{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
-			}
-			filter.Clauses = append(filter.Clauses, listFilterClause(field, "", operator, values))
-			if operator == "=" {
-				filter.Tags = append(filter.Tags, values...)
-			}
-		case "capabilities":
-			if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
-				return ListFilter{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
-			}
-			filter.Clauses = append(filter.Clauses, listFilterClause(field, "", operator, values))
-			if operator == "=" {
-				filter.Capabilities = append(filter.Capabilities, values...)
-			}
-		case "createdAfter":
-			if !listFilterOperatorAllowed(operator, ">", ">=") {
-				return ListFilter{}, unsupportedListFilterOperator(field, ">", ">=")
-			}
-			timestamp, err := singleListFilterTime(field, values)
-			if err != nil {
-				return ListFilter{}, err
-			}
-			filter.Clauses = append(filter.Clauses, listFilterTimeClause(field, operator, timestamp))
-			if operator == ">" {
-				filter.CreatedAfter = &timestamp
-			}
-		case "updatedAfter":
-			if !listFilterOperatorAllowed(operator, ">", ">=") {
-				return ListFilter{}, unsupportedListFilterOperator(field, ">", ">=")
-			}
-			timestamp, err := singleListFilterTime(field, values)
-			if err != nil {
-				return ListFilter{}, err
-			}
-			filter.Clauses = append(filter.Clauses, listFilterTimeClause(field, operator, timestamp))
-			if operator == ">" {
-				filter.UpdatedAfter = &timestamp
-			}
-		default:
-			if strings.HasPrefix(field, "metadata.") {
-				if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
-					return ListFilter{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
-				}
-				key, err := listMetadataKey(field)
-				if err != nil {
-					return ListFilter{}, err
-				}
-				filter.Clauses = append(filter.Clauses, listFilterClause("metadata", key, operator, values))
-				if filter.Metadata == nil {
-					filter.Metadata = map[string][]string{}
-				}
-				if operator == "=" {
-					filter.Metadata[key] = append(filter.Metadata[key], values...)
-				}
-				continue
-			}
-			return ListFilter{}, fmt.Errorf("unsupported filter field %q", field)
-		}
+	parser := listFilterParser{tokens: tokens, filter: &filter}
+	parsed, err := parser.parseExpression()
+	if err != nil {
+		return ListFilter{}, err
 	}
+	if parser.hasMore() {
+		return ListFilter{}, fmt.Errorf("unexpected filter token %q", parser.peek().Value)
+	}
+	filter.Expression = &parsed
 	return filter, nil
+}
+
+type listFilterToken struct {
+	Kind  string
+	Value string
+}
+
+type listFilterParser struct {
+	tokens []listFilterToken
+	index  int
+	filter *ListFilter
+}
+
+func (parser *listFilterParser) parseExpression() (ListFilterExpression, error) {
+	return parser.parseOrExpression()
+}
+
+func (parser *listFilterParser) parseOrExpression() (ListFilterExpression, error) {
+	left, err := parser.parseAndExpression()
+	if err != nil {
+		return ListFilterExpression{}, err
+	}
+	children := []ListFilterExpression{left}
+	for parser.matchWord("OR") {
+		right, err := parser.parseAndExpression()
+		if err != nil {
+			return ListFilterExpression{}, err
+		}
+		children = append(children, right)
+	}
+	if len(children) == 1 {
+		return left, nil
+	}
+	return ListFilterExpression{Operator: "OR", Children: children}, nil
+}
+
+func (parser *listFilterParser) parseAndExpression() (ListFilterExpression, error) {
+	left, err := parser.parsePrimaryExpression()
+	if err != nil {
+		return ListFilterExpression{}, err
+	}
+	children := []ListFilterExpression{left}
+	for parser.matchWord("AND") {
+		right, err := parser.parsePrimaryExpression()
+		if err != nil {
+			return ListFilterExpression{}, err
+		}
+		children = append(children, right)
+	}
+	if len(children) == 1 {
+		return left, nil
+	}
+	return ListFilterExpression{Operator: "AND", Children: children}, nil
+}
+
+func (parser *listFilterParser) parsePrimaryExpression() (ListFilterExpression, error) {
+	if parser.matchKind("(") {
+		inner, err := parser.parseExpression()
+		if err != nil {
+			return ListFilterExpression{}, err
+		}
+		if !parser.matchKind(")") {
+			return ListFilterExpression{}, errors.New("filter expression has an unmatched parenthesis")
+		}
+		return inner, nil
+	}
+	clause, err := parser.parseClause()
+	if err != nil {
+		return ListFilterExpression{}, err
+	}
+	return ListFilterExpression{Operator: "CLAUSE", Clause: &clause}, nil
+}
+
+func (parser *listFilterParser) parseClause() (ListFilterClause, error) {
+	field, err := parser.expectValue("filter field")
+	if err != nil {
+		return ListFilterClause{}, err
+	}
+	operator, err := parser.expectOperator()
+	if err != nil {
+		return ListFilterClause{}, err
+	}
+	values, err := parser.parseValues()
+	if err != nil {
+		return ListFilterClause{}, err
+	}
+	clause, err := parser.listFilterClause(field, operator, values)
+	if err != nil {
+		return ListFilterClause{}, err
+	}
+	parser.filter.Clauses = append(parser.filter.Clauses, clause)
+	return clause, nil
+}
+
+func (parser *listFilterParser) parseValues() ([]string, error) {
+	values := []string{}
+	for {
+		value, err := parser.expectValue("filter value")
+		if err != nil {
+			return nil, err
+		}
+		value = strings.TrimSpace(value)
+		if value == "" {
+			return nil, errors.New("filter values must not be empty")
+		}
+		values = append(values, value)
+		if !parser.matchKind(",") {
+			break
+		}
+	}
+	return values, nil
+}
+
+func (parser *listFilterParser) listFilterClause(field string, operator string, values []string) (ListFilterClause, error) {
+	switch field {
+	case "displayName":
+		if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
+			return ListFilterClause{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
+		}
+		clause := listFilterClause(field, "", operator, values)
+		if operator == "=" {
+			parser.filter.DisplayName = append(parser.filter.DisplayName, values...)
+		}
+		return clause, nil
+	case "type":
+		if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
+			return ListFilterClause{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
+		}
+		clause := listFilterClause(field, "", operator, values)
+		if operator == "=" {
+			parser.filter.Types = append(parser.filter.Types, values...)
+		}
+		return clause, nil
+	case "publisherId":
+		if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
+			return ListFilterClause{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
+		}
+		clause := listFilterClause(field, "", operator, values)
+		if operator == "=" {
+			parser.filter.PublisherIDs = append(parser.filter.PublisherIDs, values...)
+		}
+		return clause, nil
+	case "tags":
+		if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
+			return ListFilterClause{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
+		}
+		clause := listFilterClause(field, "", operator, values)
+		if operator == "=" {
+			parser.filter.Tags = append(parser.filter.Tags, values...)
+		}
+		return clause, nil
+	case "capabilities":
+		if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
+			return ListFilterClause{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
+		}
+		clause := listFilterClause(field, "", operator, values)
+		if operator == "=" {
+			parser.filter.Capabilities = append(parser.filter.Capabilities, values...)
+		}
+		return clause, nil
+	case "createdAfter":
+		return parser.listFilterTimeClause(field, operator, values)
+	case "updatedAfter":
+		return parser.listFilterTimeClause(field, operator, values)
+	default:
+		if strings.HasPrefix(field, "metadata.") {
+			return parser.listFilterMetadataClause(field, operator, values)
+		}
+		return ListFilterClause{}, fmt.Errorf("unsupported filter field %q", field)
+	}
+}
+
+func (parser *listFilterParser) listFilterTimeClause(field string, operator string, values []string) (ListFilterClause, error) {
+	if !listFilterOperatorAllowed(operator, ">", ">=") {
+		return ListFilterClause{}, unsupportedListFilterOperator(field, ">", ">=")
+	}
+	timestamp, err := singleListFilterTime(field, values)
+	if err != nil {
+		return ListFilterClause{}, err
+	}
+	clause := listFilterTimeClause(field, operator, timestamp)
+	if operator == ">" {
+		if field == "createdAfter" {
+			parser.filter.CreatedAfter = &timestamp
+		} else {
+			parser.filter.UpdatedAfter = &timestamp
+		}
+	}
+	return clause, nil
+}
+
+func (parser *listFilterParser) listFilterMetadataClause(field string, operator string, values []string) (ListFilterClause, error) {
+	if !listFilterOperatorAllowed(operator, "=", "!=", "contains") {
+		return ListFilterClause{}, unsupportedListFilterOperator(field, "=", "!=", "contains")
+	}
+	key, err := listMetadataKey(field)
+	if err != nil {
+		return ListFilterClause{}, err
+	}
+	clause := listFilterClause("metadata", key, operator, values)
+	if parser.filter.Metadata == nil {
+		parser.filter.Metadata = map[string][]string{}
+	}
+	if operator == "=" {
+		parser.filter.Metadata[key] = append(parser.filter.Metadata[key], values...)
+	}
+	return clause, nil
+}
+
+func (parser *listFilterParser) expectValue(label string) (string, error) {
+	if !parser.hasMore() {
+		return "", fmt.Errorf("expected %s", label)
+	}
+	token := parser.next()
+	if token.Kind != "value" {
+		return "", fmt.Errorf("expected %s, got %q", label, token.Value)
+	}
+	return token.Value, nil
+}
+
+func (parser *listFilterParser) expectOperator() (string, error) {
+	if !parser.hasMore() {
+		return "", errors.New("expected filter operator")
+	}
+	token := parser.next()
+	if token.Kind == "operator" {
+		return token.Value, nil
+	}
+	if token.Kind == "value" && strings.EqualFold(token.Value, "contains") {
+		return "contains", nil
+	}
+	return "", fmt.Errorf("expected filter operator, got %q", token.Value)
+}
+
+func (parser *listFilterParser) matchKind(kind string) bool {
+	if !parser.hasMore() || parser.peek().Kind != kind {
+		return false
+	}
+	parser.index++
+	return true
+}
+
+func (parser *listFilterParser) matchWord(word string) bool {
+	if !parser.hasMore() {
+		return false
+	}
+	token := parser.peek()
+	if token.Kind != "value" || !strings.EqualFold(token.Value, word) {
+		return false
+	}
+	parser.index++
+	return true
+}
+
+func (parser *listFilterParser) hasMore() bool {
+	return parser.index < len(parser.tokens)
+}
+
+func (parser *listFilterParser) peek() listFilterToken {
+	return parser.tokens[parser.index]
+}
+
+func (parser *listFilterParser) next() listFilterToken {
+	token := parser.tokens[parser.index]
+	parser.index++
+	return token
+}
+
+func tokenizeListFilterExpression(expression string) ([]listFilterToken, error) {
+	tokens := []listFilterToken{}
+	for index := 0; index < len(expression); {
+		char := expression[index]
+		if char == ' ' || char == '\t' || char == '\n' || char == '\r' {
+			index++
+			continue
+		}
+		switch char {
+		case '(', ')', ',':
+			tokens = append(tokens, listFilterToken{Kind: string(char), Value: string(char)})
+			index++
+		case '\'', '"':
+			value, next, err := readQuotedListFilterToken(expression, index)
+			if err != nil {
+				return nil, err
+			}
+			tokens = append(tokens, listFilterToken{Kind: "value", Value: value})
+			index = next
+		case '=', '!', '>':
+			operator, next, err := readListFilterOperator(expression, index)
+			if err != nil {
+				return nil, err
+			}
+			tokens = append(tokens, listFilterToken{Kind: "operator", Value: operator})
+			index = next
+		default:
+			value, next := readBareListFilterToken(expression, index)
+			if value == "" {
+				return nil, fmt.Errorf("unexpected filter character %q", char)
+			}
+			tokens = append(tokens, listFilterToken{Kind: "value", Value: value})
+			index = next
+		}
+	}
+	if len(tokens) == 0 {
+		return nil, errors.New("filter must not be empty")
+	}
+	return tokens, nil
+}
+
+func readQuotedListFilterToken(expression string, start int) (string, int, error) {
+	quote := expression[start]
+	var builder strings.Builder
+	for index := start + 1; index < len(expression); index++ {
+		if expression[index] == quote {
+			return builder.String(), index + 1, nil
+		}
+		builder.WriteByte(expression[index])
+	}
+	return "", 0, errors.New("filter expression has an unterminated quoted value")
+}
+
+func readListFilterOperator(expression string, start int) (string, int, error) {
+	if strings.HasPrefix(expression[start:], ">=") || strings.HasPrefix(expression[start:], "!=") {
+		return expression[start : start+2], start + 2, nil
+	}
+	if expression[start] == '>' || expression[start] == '=' {
+		return expression[start : start+1], start + 1, nil
+	}
+	return "", 0, fmt.Errorf("unsupported filter operator starting at %q", expression[start:])
+}
+
+func readBareListFilterToken(expression string, start int) (string, int) {
+	index := start
+	for index < len(expression) {
+		char := expression[index]
+		if char == ' ' || char == '\t' || char == '\n' || char == '\r' || char == '(' || char == ')' || char == ',' || char == '=' || char == '!' || char == '>' {
+			break
+		}
+		index++
+	}
+	return expression[start:index], index
 }
 
 func ParseListOrderBy(raw string) (ListOrder, error) {
@@ -135,156 +390,6 @@ func ParseListOrderBy(raw string) (ListOrder, error) {
 		}
 	}
 	return ListOrder{Field: field, Direction: direction}, nil
-}
-
-func splitListFilterClauses(expression string) []string {
-	clauses := []string{}
-	start := 0
-	quoted := rune(0)
-	for index, char := range expression {
-		if quoted != 0 {
-			if char == quoted {
-				quoted = 0
-			}
-			continue
-		}
-		if char == '\'' || char == '"' {
-			quoted = char
-			continue
-		}
-		if hasListFilterANDAt(expression, index) {
-			clauses = append(clauses, strings.TrimSpace(expression[start:index]))
-			start = index + len(" AND ")
-		}
-	}
-	clauses = append(clauses, strings.TrimSpace(expression[start:]))
-	return clauses
-}
-
-func hasListFilterANDAt(expression string, index int) bool {
-	if index+len(" AND ") > len(expression) {
-		return false
-	}
-	return strings.EqualFold(expression[index:index+len(" AND ")], " AND ")
-}
-
-func splitListFilterClause(clause string) (string, string, string, error) {
-	for _, operator := range []string{">=", "!=", ">", "="} {
-		if index := indexOutsideQuotes(clause, operator); index >= 0 {
-			field := strings.TrimSpace(clause[:index])
-			value := strings.TrimSpace(clause[index+len(operator):])
-			if field == "" || value == "" {
-				return "", "", "", fmt.Errorf("invalid filter clause %q", clause)
-			}
-			return field, operator, value, nil
-		}
-	}
-	if field, value, ok := splitListFilterKeywordOperator(clause, "contains"); ok {
-		return field, "contains", value, nil
-	}
-	return "", "", "", fmt.Errorf("invalid filter clause %q", clause)
-}
-
-func splitListFilterKeywordOperator(clause string, operator string) (string, string, bool) {
-	quoted := rune(0)
-	operatorLength := len(operator)
-	for index, char := range clause {
-		if quoted != 0 {
-			if char == quoted {
-				quoted = 0
-			}
-			continue
-		}
-		if char == '\'' || char == '"' {
-			quoted = char
-			continue
-		}
-		if index+operatorLength > len(clause) || !strings.EqualFold(clause[index:index+operatorLength], operator) {
-			continue
-		}
-		beforeOK := index == 0 || isListFilterWhitespace(rune(clause[index-1]))
-		afterIndex := index + operatorLength
-		afterOK := afterIndex == len(clause) || isListFilterWhitespace(rune(clause[afterIndex]))
-		if !beforeOK || !afterOK {
-			continue
-		}
-		field := strings.TrimSpace(clause[:index])
-		value := strings.TrimSpace(clause[afterIndex:])
-		return field, value, field != "" && value != ""
-	}
-	return "", "", false
-}
-
-func isListFilterWhitespace(char rune) bool {
-	return char == ' ' || char == '\t' || char == '\n' || char == '\r'
-}
-
-func indexOutsideQuotes(value string, needle string) int {
-	quoted := rune(0)
-	for index, char := range value {
-		if quoted != 0 {
-			if char == quoted {
-				quoted = 0
-			}
-			continue
-		}
-		if char == '\'' || char == '"' {
-			quoted = char
-			continue
-		}
-		if strings.HasPrefix(value[index:], needle) {
-			return index
-		}
-	}
-	return -1
-}
-
-func parseListFilterValues(raw string) ([]string, error) {
-	parts := splitCommaSeparatedValues(raw)
-	values := make([]string, 0, len(parts))
-	for _, part := range parts {
-		value := strings.TrimSpace(part)
-		if len(value) >= 2 {
-			first := value[0]
-			last := value[len(value)-1]
-			if (first == '\'' && last == '\'') || (first == '"' && last == '"') {
-				value = value[1 : len(value)-1]
-			}
-		}
-		value = strings.TrimSpace(value)
-		if value == "" {
-			return nil, errors.New("filter values must not be empty")
-		}
-		values = append(values, value)
-	}
-	if len(values) == 0 {
-		return nil, errors.New("filter values must not be empty")
-	}
-	return values, nil
-}
-
-func splitCommaSeparatedValues(raw string) []string {
-	values := []string{}
-	start := 0
-	quoted := rune(0)
-	for index, char := range raw {
-		if quoted != 0 {
-			if char == quoted {
-				quoted = 0
-			}
-			continue
-		}
-		if char == '\'' || char == '"' {
-			quoted = char
-			continue
-		}
-		if char == ',' {
-			values = append(values, raw[start:index])
-			start = index + 1
-		}
-	}
-	values = append(values, raw[start:])
-	return values
 }
 
 func singleListFilterTime(field string, values []string) (time.Time, error) {

@@ -113,6 +113,7 @@ type ListFilter struct {
 	CreatedAfter *time.Time
 	UpdatedAfter *time.Time
 	Clauses      []ListFilterClause
+	Expression   *ListFilterExpression
 }
 
 type ListFilterClause struct {
@@ -121,6 +122,12 @@ type ListFilterClause struct {
 	Operator    string
 	Values      []string
 	Time        *time.Time
+}
+
+type ListFilterExpression struct {
+	Operator string
+	Clause   *ListFilterClause
+	Children []ListFilterExpression
 }
 
 type ListOrder struct {
@@ -360,6 +367,13 @@ func (store *Store) ListEntriesPage(ctx context.Context, options ListOptions) (L
 }
 
 func applyListFilter(query *gorm.DB, filter ListFilter) *gorm.DB {
+	if filter.Expression != nil {
+		condition, args := listFilterExpressionCondition(*filter.Expression)
+		if condition != "" {
+			return query.Where(condition, args...)
+		}
+		return query
+	}
 	if len(filter.Clauses) > 0 {
 		for _, clause := range filter.Clauses {
 			query = applyListFilterClause(query, clause)
@@ -396,102 +410,134 @@ func applyListFilter(query *gorm.DB, filter ListFilter) *gorm.DB {
 }
 
 func applyListFilterClause(query *gorm.DB, filter ListFilterClause) *gorm.DB {
+	condition, args := listFilterClauseCondition(filter)
+	if condition == "" {
+		return query
+	}
+	return query.Where(condition, args...)
+}
+
+func listFilterExpressionCondition(expression ListFilterExpression) (string, []any) {
+	if expression.Operator == "CLAUSE" && expression.Clause != nil {
+		return listFilterClauseCondition(*expression.Clause)
+	}
+	if expression.Operator != "AND" && expression.Operator != "OR" {
+		return "", nil
+	}
+	conditions := make([]string, 0, len(expression.Children))
+	args := []any{}
+	for _, child := range expression.Children {
+		condition, childArgs := listFilterExpressionCondition(child)
+		if condition == "" {
+			continue
+		}
+		conditions = append(conditions, condition)
+		args = append(args, childArgs...)
+	}
+	if len(conditions) == 0 {
+		return "", nil
+	}
+	joiner := " " + expression.Operator + " "
+	return "(" + strings.Join(conditions, joiner) + ")", args
+}
+
+func listFilterClauseCondition(filter ListFilterClause) (string, []any) {
 	switch filter.Field {
 	case "displayName":
-		return applyTextClause(query, "display_name", filter.Operator, filter.Values)
+		return textClauseCondition("display_name", filter.Operator, filter.Values)
 	case "type":
-		return applyExactOrTextClause(query, "type", filter.Operator, filter.Values)
+		return exactOrTextClauseCondition("type", filter.Operator, filter.Values)
 	case "publisherId":
-		return applyPublisherClause(query, filter.Operator, filter.Values)
+		return publisherClauseCondition(filter.Operator, filter.Values)
 	case "tags":
-		return applyJSONArrayClause(query, "tags", filter.Operator, filter.Values)
+		return jsonArrayClauseCondition("tags", filter.Operator, filter.Values)
 	case "capabilities":
-		return applyJSONArrayClause(query, "capabilities", filter.Operator, filter.Values)
+		return jsonArrayClauseCondition("capabilities", filter.Operator, filter.Values)
 	case "metadata":
-		return applyMetadataClause(query, filter.MetadataKey, filter.Operator, filter.Values)
+		return metadataClauseCondition(filter.MetadataKey, filter.Operator, filter.Values)
 	case "createdAfter":
-		return applyTimeClause(query, "created_at", filter.Operator, filter)
+		return timeClauseCondition("created_at", filter.Operator, filter)
 	case "updatedAfter":
-		return applyTimeClause(query, "updated_at", filter.Operator, filter)
+		return timeClauseCondition("updated_at", filter.Operator, filter)
 	default:
-		return query
+		return "", nil
 	}
 }
 
-func applyTextClause(query *gorm.DB, column string, operator string, values []string) *gorm.DB {
+func textClauseCondition(column string, operator string, values []string) (string, []any) {
 	switch operator {
 	case "=", "contains":
-		return query.Where(orTextContainsClause(column, len(values)), likeValues(values)...)
+		return orTextContainsClause(column, len(values)), likeValues(values)
 	case "!=":
-		return query.Where("NOT "+orTextContainsClause(column, len(values)), likeValues(values)...)
+		return "NOT " + orTextContainsClause(column, len(values)), likeValues(values)
 	default:
-		return query
+		return "", nil
 	}
 }
 
-func applyExactOrTextClause(query *gorm.DB, column string, operator string, values []string) *gorm.DB {
+func exactOrTextClauseCondition(column string, operator string, values []string) (string, []any) {
 	switch operator {
 	case "=":
-		return query.Where(column+" IN ?", values)
+		return column + " IN ?", []any{values}
 	case "!=":
-		return query.Where(column+" NOT IN ?", values)
+		return column + " NOT IN ?", []any{values}
 	case "contains":
-		return query.Where(orTextContainsClause(column, len(values)), likeValues(values)...)
+		return orTextContainsClause(column, len(values)), likeValues(values)
 	default:
-		return query
+		return "", nil
 	}
 }
 
-func applyPublisherClause(query *gorm.DB, operator string, values []string) *gorm.DB {
+func publisherClauseCondition(operator string, values []string) (string, []any) {
 	switch operator {
 	case "=":
-		return query.Where(orPublisherClause(len(values)), publisherLikeValues(values)...)
+		return orPublisherClause(len(values)), publisherLikeValues(values)
 	case "!=":
-		return query.Where("NOT "+orPublisherClause(len(values)), publisherLikeValues(values)...)
+		return "NOT " + orPublisherClause(len(values)), publisherLikeValues(values)
 	case "contains":
-		return query.Where(orPublisherContainsClause(len(values)), publisherContainsLikeValues(values)...)
+		return orPublisherContainsClause(len(values)), publisherContainsLikeValues(values)
 	default:
-		return query
+		return "", nil
 	}
 }
 
-func applyJSONArrayClause(query *gorm.DB, column string, operator string, values []string) *gorm.DB {
+func jsonArrayClauseCondition(column string, operator string, values []string) (string, []any) {
 	switch operator {
 	case "=":
-		return query.Where("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE("+column+", '[]'::jsonb)) AS item(value) WHERE item.value IN ?)", values)
+		return "EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(" + column + ", '[]'::jsonb)) AS item(value) WHERE item.value IN ?)", []any{values}
 	case "!=":
-		return query.Where("NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE("+column+", '[]'::jsonb)) AS item(value) WHERE item.value IN ?)", values)
+		return "NOT EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(" + column + ", '[]'::jsonb)) AS item(value) WHERE item.value IN ?)", []any{values}
 	case "contains":
-		return query.Where("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE("+column+", '[]'::jsonb)) AS item(value) WHERE "+orTextContainsClause("item.value", len(values))+")", likeValues(values)...)
+		return "EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(" + column + ", '[]'::jsonb)) AS item(value) WHERE " + orTextContainsClause("item.value", len(values)) + ")", likeValues(values)
 	default:
-		return query
+		return "", nil
 	}
 }
 
-func applyMetadataClause(query *gorm.DB, key string, operator string, values []string) *gorm.DB {
+func metadataClauseCondition(key string, operator string, values []string) (string, []any) {
 	switch operator {
 	case "=":
-		return query.Where("metadata ->> ? IN ?", key, values)
+		return "metadata ->> ? IN ?", []any{key, values}
 	case "!=":
-		return query.Where("(metadata ->> ? IS NULL OR metadata ->> ? NOT IN ?)", key, key, values)
+		return "(metadata ->> ? IS NULL OR metadata ->> ? NOT IN ?)", []any{key, key, values}
 	case "contains":
-		return query.Where(orMetadataContainsClause(len(values)), metadataContainsValues(key, values)...)
+		return orMetadataContainsClause(len(values)), metadataContainsValues(key, values)
 	default:
-		return query
+		return "", nil
 	}
 }
 
-func applyTimeClause(query *gorm.DB, column string, operator string, filter ListFilterClause) *gorm.DB {
+func timeClauseCondition(column string, operator string, filter ListFilterClause) (string, []any) {
 	if filter.Time == nil {
-		return query
+		return "", nil
 	}
 	switch operator {
 	case ">":
-		return query.Where(column+" > ?", *filter.Time)
+		return column + " > ?", []any{*filter.Time}
 	case ">=":
-		return query.Where(column+" >= ?", *filter.Time)
+		return column + " >= ?", []any{*filter.Time}
 	default:
-		return query
+		return "", nil
 	}
 }
 

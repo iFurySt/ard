@@ -286,6 +286,11 @@ bin/ardctl --database-url "${database_url}" list \
   --filter "type != 'application/mcp-server-card+json' AND displayName contains 'browser' AND publisherId contains 'github' AND tags contains 'ski' AND capabilities != 'ForecastTool' AND metadata.adapter contains 'ski'" \
   --json >/tmp/ard-e2e-local-list-rich-filter.json
 grep -q "open-browser-use" /tmp/ard-e2e-local-list-rich-filter.json
+bin/ardctl --database-url "${database_url}" list \
+  --filter "type = 'application/openapi+json' OR (displayName contains 'browser' AND metadata.adapter = 'skill')" \
+  --json >/tmp/ard-e2e-local-list-grouped-filter.json
+grep -q "open-browser-use" /tmp/ard-e2e-local-list-grouped-filter.json
+grep -q "Swagger Petstore - OpenAPI 3.0" /tmp/ard-e2e-local-list-grouped-filter.json
 if bin/ardctl --database-url "${database_url}" list --filter "score = '100'" >/tmp/ard-e2e-local-list-invalid-filter.log 2>&1; then
   echo "local list unexpectedly accepted unsupported filter" >&2
   exit 1
@@ -308,6 +313,12 @@ bin/ardctl browse \
   --filter "type != 'application/mcp-server-card+json' AND displayName contains 'browser' AND publisherId contains 'github' AND tags contains 'ski' AND capabilities != 'ForecastTool' AND metadata.adapter contains 'ski'" \
   --json >/tmp/ard-e2e-public-browse-rich-filter.json
 grep -q "open-browser-use" /tmp/ard-e2e-public-browse-rich-filter.json
+bin/ardctl browse \
+  --registry-url "${registry_url}" \
+  --filter "type = 'application/openapi+json' OR (displayName contains 'browser' AND metadata.adapter = 'skill')" \
+  --json >/tmp/ard-e2e-public-browse-grouped-filter.json
+grep -q "open-browser-use" /tmp/ard-e2e-public-browse-grouped-filter.json
+grep -q "Swagger Petstore - OpenAPI 3.0" /tmp/ard-e2e-public-browse-grouped-filter.json
 bin/ardctl browse --registry-url "${registry_url}" --limit 1 --json >/tmp/ard-e2e-public-browse-page1.json
 browse_page_token="$(python3 -c 'import json; print(json.load(open("/tmp/ard-e2e-public-browse-page1.json")).get("pageToken", ""))')"
 if [ -z "${browse_page_token}" ]; then

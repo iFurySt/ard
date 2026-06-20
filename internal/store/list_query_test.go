@@ -71,6 +71,29 @@ func TestParseListFilterExpressionSupportsRichOperators(t *testing.T) {
 	}
 }
 
+func TestParseListFilterExpressionSupportsORAndParentheses(t *testing.T) {
+	filter, err := ParseListFilterExpression("type = 'application/openapi+json' OR (tags = 'skill' AND metadata.adapter = 'skill')")
+	if err != nil {
+		t.Fatalf("parse grouped list filter: %v", err)
+	}
+	if len(filter.Clauses) != 3 {
+		t.Fatalf("unexpected parsed clauses: %#v", filter.Clauses)
+	}
+	if filter.Expression == nil || filter.Expression.Operator != "OR" || len(filter.Expression.Children) != 2 {
+		t.Fatalf("unexpected expression root: %#v", filter.Expression)
+	}
+	grouped := filter.Expression.Children[1]
+	if grouped.Operator != "AND" || len(grouped.Children) != 2 {
+		t.Fatalf("unexpected grouped expression: %#v", grouped)
+	}
+	if len(filter.Types) != 1 || filter.Types[0] != ard.TypeOpenAPI {
+		t.Fatalf("unexpected compatibility type filters: %#v", filter.Types)
+	}
+	if got := filter.Metadata["adapter"]; len(got) != 1 || got[0] != "skill" {
+		t.Fatalf("unexpected compatibility metadata filters: %#v", filter.Metadata)
+	}
+}
+
 func TestParseListFilterExpressionRejectsUnsupportedFields(t *testing.T) {
 	_, err := ParseListFilterExpression("score = '100'")
 	if err == nil {
@@ -94,6 +117,14 @@ func TestParseListFilterExpressionRejectsUnsupportedFields(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "metadata filter key must not be empty") {
 		t.Fatalf("unexpected metadata key error: %v", err)
+	}
+
+	_, err = ParseListFilterExpression("(type = 'application/mcp-server-card+json'")
+	if err == nil {
+		t.Fatal("expected unmatched parenthesis to be rejected")
+	}
+	if !strings.Contains(err.Error(), "unmatched parenthesis") {
+		t.Fatalf("unexpected parenthesis error: %v", err)
 	}
 }
 
