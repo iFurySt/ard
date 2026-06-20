@@ -13,6 +13,7 @@ conformance_bin="${ARD_CONFORMANCE_BIN:-../ard-spec/conformance/bin/conformance-
 
 mcp_card_url="https://raw.githubusercontent.com/clauxel/agentmemory-mcp/main/server.json"
 skill_url="https://raw.githubusercontent.com/iFurySt/open-codex-browser-use/main/skills/open-browser-use/SKILL.md"
+openapi_url="https://petstore3.swagger.io/api/v3/openapi.json"
 
 cleanup() {
   if [ -n "${registry_pid:-}" ]; then
@@ -87,6 +88,9 @@ bin/ardctl admin add skill "${skill_url}" \
   --publisher github.com \
   --registry-url "${registry_url}" \
   --admin-token "${admin_token}"
+bin/ardctl admin add openapi "${openapi_url}" \
+  --registry-url "${registry_url}" \
+  --admin-token "${admin_token}"
 bin/ardctl admin add a2a "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" \
   --publisher example.com \
   --registry-url "${registry_url}" \
@@ -99,6 +103,7 @@ grep -q "Weather Data Node" /tmp/ard-e2e-list-mcp.json
 bin/ardctl admin export catalog --registry-url "${registry_url}" --admin-token "${admin_token}" -o "${export_file}"
 grep -q "Agentmemory MCP" "${export_file}"
 grep -q "open-browser-use" "${export_file}"
+grep -q "Swagger Petstore - OpenAPI 3.0" "${export_file}"
 grep -q "Hello World Agent" "${export_file}"
 bin/ard verify catalog "${export_file}" --json | grep -q '"valid": true'
 
@@ -108,6 +113,7 @@ fi
 
 bin/ardctl search memory --registry-url "${registry_url}" --kind mcp --json | grep -q "Agentmemory MCP"
 bin/ardctl search browser --registry-url "${registry_url}" --kind skill --json | grep -q "open-browser-use"
+bin/ardctl search pet --registry-url "${registry_url}" --kind openapi --json | grep -q "Swagger Petstore - OpenAPI 3.0"
 bin/ardctl search hello --registry-url "${registry_url}" --kind a2a --json | grep -q "Hello World Agent"
 
 bin/ardctl admin status urn:air:github.com:skill:open-browser-use disabled \

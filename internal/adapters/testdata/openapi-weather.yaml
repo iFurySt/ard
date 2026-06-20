@@ -1,0 +1,23 @@
+openapi: 3.1.0
+info:
+  title: Weather Forecast API
+  description: HTTP API for current weather and forecasts.
+  version: 1.2.3
+servers:
+  - url: https://api.example.com/weather
+tags:
+  - name: weather
+    description: Weather data operations.
+paths:
+  /current:
+    get:
+      operationId: getCurrentWeather
+      tags:
+        - weather
+      summary: Get current weather.
+  /forecast:
+    get:
+      operationId: getWeatherForecast
+      tags:
+        - weather
+      summary: Get a weather forecast.

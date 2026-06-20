@@ -103,6 +103,8 @@ func mediaTypeForKind(kind string) string {
 		return ard.TypeAICatalog
 	case "registry":
 		return ard.TypeAIRegistry
+	case "openapi":
+		return ard.TypeOpenAPI
 	default:
 		return kind
 	}

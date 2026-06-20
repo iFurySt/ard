@@ -8,8 +8,8 @@ Cobra, Gin, GORM, and Postgres.
 - Registry server: self-hosted ARD registry exposing discovery, search, health, and
   catalog endpoints through Gin, plus optional token-protected admin routes.
 - CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
-  `add skill`, `admin`, `crawl`, `export catalog`, `list`, `remove`, `verify catalog`,
-  and `search` today.
+  `add skill`, `add openapi`, `admin`, `crawl`, `export catalog`, `list`, `remove`,
+  `verify catalog`, and `search` today.
 - Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
   management operations without server startup, and `cmd/ard-server` ships a dedicated
   registry server binary.
@@ -29,8 +29,9 @@ Cobra, Gin, GORM, and Postgres.
   export only expose `active` entries; admin list can include and filter all statuses.
 - Audit log: admin mutations append persisted events for upsert, status changes, and
   deletion with action, identifier, status, source, remote address, and timestamp.
-- Artifact onboarding: `ard add mcp`, `ard add a2a`, and `ard add skill` translate real
-  MCP server cards, A2A agent cards, and Skill markdown files into ARD catalog entries.
+- Artifact onboarding: `ard add mcp`, `ard add a2a`, `ard add skill`, and
+  `ard add openapi` translate real MCP server cards, A2A agent cards, Skill markdown
+  files, and OpenAPI documents into ARD catalog entries.
 - Verification engine: initial schema-level checks cover `urn:air:`, required fields,
   `url`/`data` exclusivity, URL syntax, and representative query count.
 
@@ -42,7 +43,8 @@ Cobra, Gin, GORM, and Postgres.
 - `internal/cli/`: Cobra command tree.
 - `internal/httpapi/`: Gin router and HTTP handlers.
 - `internal/ard/`: ARD models, media type constants, filters, and validation.
-- `internal/adapters/`: artifact-to-catalog-entry adapters for MCP, A2A, and Skills.
+- `internal/adapters/`: artifact-to-catalog-entry adapters for MCP, A2A, Skills, and
+  OpenAPI.
 - `internal/catalog/`: local and HTTP catalog loading.
 - `internal/store/`: GORM/Postgres persistence and search.
 - `internal/config/`: environment and CLI config helpers.
@@ -124,11 +126,11 @@ boundary without changing HTTP contracts.
 - `/admin/*`: implementation-specific management routes; disabled unless an admin token
   is configured. Implemented, including entry lifecycle status management and audit event
   listing.
-- CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`, `crawl`,
-  `admin`, `export catalog`, `list`, `remove`, `verify catalog`, and `search` are
-  implemented. `ardctl admin status` manages remote entry lifecycle state, and
-  `ardctl admin audit` lists admin mutation events. `ard-server` runs the same server
-  without exposing management subcommands.
+- CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`,
+  `add openapi`, `crawl`, `admin`, `export catalog`, `list`, `remove`, `verify catalog`,
+  and `search` are implemented. `ardctl admin status` manages remote entry lifecycle
+  state, and `ardctl admin audit` lists admin mutation events. `ard-server` runs the same
+  server without exposing management subcommands.
 
 ## Specification Alignment
 
@@ -144,6 +146,9 @@ conformance tool over older reference implementations. In particular:
 
 - Use `urn:air:` identifiers, not the older `urn:ai:` form.
 - Treat `application/mcp-server-card+json` as the MCP discovery media type.
+- Treat OpenAPI artifact onboarding as an implementation extension using
+  `application/openapi+json` until upstream ARD standardizes an OpenAPI discovery media
+  type.
 - Keep `score` strictly as semantic relevance, not a trust or safety signal.
 - Support web ingestion of `ai-catalog.json` catalogs as a required registry capability.
 - Keep `/explore` local-only and optional; if unsupported, return `501`.

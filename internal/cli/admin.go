@@ -144,6 +144,7 @@ func newAdminAddCommand(options *adminOptions) *cobra.Command {
 	command.AddCommand(newAdminAddArtifactCommand(options, "mcp", "Add an MCP server card through the remote admin API", adapters.LoadMCPServerCard))
 	command.AddCommand(newAdminAddArtifactCommand(options, "a2a", "Add an A2A agent card through the remote admin API", adapters.LoadA2AAgentCard))
 	command.AddCommand(newAdminAddArtifactCommand(options, "skill", "Add an agent skill through the remote admin API", adapters.LoadSkill))
+	command.AddCommand(newAdminAddArtifactCommand(options, "openapi", "Add an OpenAPI document through the remote admin API", adapters.LoadOpenAPI))
 	return command
 }
 

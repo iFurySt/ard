@@ -27,6 +27,7 @@ ardctl add catalog https://example.com/.well-known/ai-catalog.json
 ard add mcp https://example.com/mcp/server.json
 ard add a2a https://example.com/.well-known/agent-card.json
 ard add skill https://example.com/skills/open-browser-use/SKILL.md
+ard add openapi https://example.com/openapi.json
 ard crawl
 ardctl list --kind mcp
 ardctl remove urn:air:example.com:server:weather --yes
@@ -68,7 +69,7 @@ bin/ardctl admin list --admin-token "$ARD_ADMIN_TOKEN"
 
 This repository is in early implementation. Current milestones include a Go CLI,
 Gin-based registry server, GORM/Postgres persistence, catalog import, well-known catalog
-crawl, MCP/A2A/Skill artifact onboarding, catalog verification, ARD search, browse, and
+crawl, MCP/A2A/Skill/OpenAPI artifact onboarding, catalog verification, ARD search, browse, and
 explore facets, catalog export, local listing, entry removal, and token-protected admin
 API routes with an `ardctl admin` client. Admin flows can disable, reactivate, filter
 entries, and inspect mutation audit events without exposing inactive resources through

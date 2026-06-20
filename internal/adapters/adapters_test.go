@@ -81,6 +81,35 @@ func TestLoadSkillFromLocalFileWithIdentifierOverride(t *testing.T) {
 	}
 }
 
+func TestLoadOpenAPIFromLocalYAML(t *testing.T) {
+	entry, err := LoadOpenAPI(
+		context.Background(),
+		filepath.Join("testdata", "openapi-weather.yaml"),
+		Options{},
+	)
+	if err != nil {
+		t.Fatalf("load OpenAPI document: %v", err)
+	}
+	if entry.Type != ard.TypeOpenAPI {
+		t.Fatalf("unexpected type: %s", entry.Type)
+	}
+	if entry.Identifier != "urn:air:agent.localhost:api:weather-forecast-api" {
+		t.Fatalf("unexpected identifier: %s", entry.Identifier)
+	}
+	if entry.DisplayName != "Weather Forecast API" {
+		t.Fatalf("unexpected displayName: %s", entry.DisplayName)
+	}
+	if entry.URL != "" || entry.Data == nil {
+		t.Fatalf("local OpenAPI document should be embedded as data")
+	}
+	if !containsString(entry.Capabilities, "getCurrentWeather") {
+		t.Fatalf("expected operationId capability, got %#v", entry.Capabilities)
+	}
+	if got := entry.Metadata["apiFormat"]; got != "3.1.0" {
+		t.Fatalf("unexpected apiFormat metadata: %#v", got)
+	}
+}
+
 func testArtifactServer(t *testing.T, path string) string {
 	t.Helper()
 	data, err := os.ReadFile(path)

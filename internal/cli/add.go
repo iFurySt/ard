@@ -21,6 +21,7 @@ func newAddCommand(root *rootOptions) *cobra.Command {
 	command.AddCommand(newAddArtifactCommand(root, "mcp", "Import an MCP server card", adapters.LoadMCPServerCard))
 	command.AddCommand(newAddArtifactCommand(root, "a2a", "Import an A2A agent card", adapters.LoadA2AAgentCard))
 	command.AddCommand(newAddArtifactCommand(root, "skill", "Import an agent skill", adapters.LoadSkill))
+	command.AddCommand(newAddArtifactCommand(root, "openapi", "Import an OpenAPI document", adapters.LoadOpenAPI))
 	return command
 }
 

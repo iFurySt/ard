@@ -17,6 +17,7 @@ const (
 	TypeA2AAgentCard   = "application/a2a-agent-card+json"
 	TypeMCPServerCard  = "application/mcp-server-card+json"
 	TypeAISkill        = "text/markdown; profile=\"urn:air:agent-skills\""
+	TypeOpenAPI        = "application/openapi+json"
 )
 
 var urnPattern = regexp.MustCompile(`^urn:air:([A-Za-z0-9.-]+)(?::([A-Za-z0-9._:-]+))?:([A-Za-z0-9._-]+)$`)
