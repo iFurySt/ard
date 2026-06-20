@@ -572,6 +572,26 @@ func (server Server) adminRejectReview(context *gin.Context) {
 
 func (server Server) adminReviewDecision(context *gin.Context, status string, action string) {
 	identifier := context.Param("identifier")
+	payload := struct {
+		Reason string `json:"reason,omitempty"`
+	}{}
+	if context.Request.Body != nil && context.Request.ContentLength != 0 {
+		if err := context.ShouldBindJSON(&payload); err != nil {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
+	}
+	reason, ok := normalizeReviewReason(payload.Reason)
+	if !ok {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"errorCode": "INVALID_ARGUMENT",
+			"message":   "reason must be 1000 characters or fewer",
+		})
+		return
+	}
 	if err := ard.ValidateIdentifier(identifier); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"errorCode": "INVALID_ARGUMENT",
@@ -616,7 +636,7 @@ func (server Server) adminReviewDecision(context *gin.Context, status string, ac
 		})
 		return
 	}
-	if err := server.recordAuditEvent(context, action, identifier, status); err != nil {
+	if err := server.recordAuditEventWithReason(context, action, identifier, status, reason); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
@@ -625,8 +645,17 @@ func (server Server) adminReviewDecision(context *gin.Context, status string, ac
 	}
 	context.JSON(http.StatusOK, gin.H{
 		"identifier": identifier,
+		"reason":     reason,
 		"status":     status,
 	})
+}
+
+func normalizeReviewReason(reason string) (string, bool) {
+	reason = strings.TrimSpace(reason)
+	if len(reason) > 1000 {
+		return "", false
+	}
+	return reason, true
 }
 
 func (server Server) adminDeleteEntry(context *gin.Context) {
@@ -664,10 +693,15 @@ func (server Server) adminDeleteEntry(context *gin.Context) {
 }
 
 func (server Server) recordAuditEvent(context *gin.Context, action string, identifier string, status string) error {
+	return server.recordAuditEventWithReason(context, action, identifier, status, "")
+}
+
+func (server Server) recordAuditEventWithReason(context *gin.Context, action string, identifier string, status string, reason string) error {
 	return server.store.RecordAuditEvent(context.Request.Context(), store.AuditEvent{
 		Action:     action,
 		Identifier: identifier,
 		Status:     status,
+		Reason:     reason,
 		RequestID:  requestIDFromContext(context),
 		Source:     "admin-api",
 		RemoteAddr: context.ClientIP(),

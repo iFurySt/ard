@@ -32,8 +32,11 @@ Set it with `--policy-file` or `ARD_POLICY_FILE`.
   metadata but does not overwrite its existing lifecycle status.
 - Public search, browse, explore, and catalog export only expose `active` entries.
 - Pending entries can be listed with `ardctl admin review list`.
-- `ardctl admin review approve IDENTIFIER` makes a pending entry active.
-- `ardctl admin review reject IDENTIFIER` disables a pending entry.
+- `ardctl admin review approve IDENTIFIER --reason "reviewed publisher and digest"`
+  makes a pending entry active and records the reason on the review audit event.
+- `ardctl admin review reject IDENTIFIER --reason "not approved for production"`
+  disables a pending entry and records the reason on the review audit event.
+- Review reasons are decision metadata, not ARD catalog entry metadata.
 
 Policy is an MVP ingestion gate. It is not a replacement for RBAC, signed trust
 manifests, or a full policy engine.

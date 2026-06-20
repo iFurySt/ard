@@ -47,11 +47,13 @@ Cobra, Gin, GORM, and Postgres.
   entries or require review by moving new or updated entries to `pending` based on
   publisher or media type.
 - Review workflow: pending entries can be listed through `/admin/reviews` and approved or
-  rejected through dedicated review routes and `ardctl admin review`.
+  rejected through dedicated review routes and `ardctl admin review`. Review decisions
+  can carry an optional reason that is recorded on the audit event, not on the ARD
+  catalog entry.
 - Audit log: admin mutations append persisted events for upsert, status changes, and
-  deletion with action, identifier, status, source, remote address, request ID,
-  timestamp, previous hash, and event hash. `/admin/audit/verify` checks the persisted
-  hash chain.
+  deletion with action, identifier, status, optional review reason, source, remote
+  address, request ID, timestamp, previous hash, and event hash. `/admin/audit/verify`
+  checks the persisted hash chain.
 - Request correlation: Gin middleware preserves or generates `X-Request-ID`, returns it
   on every HTTP response, emits JSON access logs, and attaches request IDs to admin audit
   events. Shared request-ID context propagation also covers outbound catalog/artifact
@@ -189,9 +191,9 @@ boundary without changing HTTP contracts.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`,
   `add openapi`, `crawl`, `admin`, `export catalog`, `list`, `remove`, `verify catalog`,
   and `search` are implemented. `ardctl admin status` manages remote entry lifecycle
-  state, `ardctl admin review` handles pending review decisions, and `ardctl admin audit`
-  lists and verifies admin mutation events. `ard-server` runs the same server without
-  exposing management subcommands.
+  state, `ardctl admin review --reason` handles pending review decisions with optional
+  audit reasons, and `ardctl admin audit` lists and verifies admin mutation events.
+  `ard-server` runs the same server without exposing management subcommands.
 
 ## Specification Alignment
 

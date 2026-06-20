@@ -83,9 +83,10 @@ Gin-based registry server, GORM/Postgres persistence, catalog import, well-known
 crawl, MCP/A2A/Skill/OpenAPI artifact onboarding, catalog verification, ARD search, browse, and
 explore facets, catalog export, local listing, entry removal, and token-protected admin
 API routes with an `ardctl admin` client. Admin flows can disable, reactivate, filter
-entries, apply ingestion policy, review pending entries, and inspect mutation audit
-events without exposing inactive resources through public discovery. Audit events are
-hash-chained and can be verified through `ardctl admin audit --verify-chain`. Server
+entries, apply ingestion policy, review pending entries with decision reasons, and
+inspect mutation audit events without exposing inactive resources through public
+discovery. Audit events are hash-chained and can be verified through
+`ardctl admin audit --verify-chain`. Server
 deployments can use a single admin token or reloadable role-scoped admin token files. URL
 artifacts can be pinned and verified with `trustManifest.sourceDigest`. Search supports
 client-followed federation referrals, bounded server-side `federation=auto` upstream

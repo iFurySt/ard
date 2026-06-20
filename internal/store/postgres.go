@@ -56,6 +56,7 @@ type AuditEventRecord struct {
 	Action       string `gorm:"not null;index"`
 	Identifier   string `gorm:"index"`
 	Status       string
+	Reason       string `gorm:"type:text"`
 	RequestID    string `gorm:"index"`
 	Source       string `gorm:"not null;index"`
 	RemoteAddr   string
@@ -69,6 +70,7 @@ type AuditEvent struct {
 	Action       string    `json:"action"`
 	Identifier   string    `json:"identifier,omitempty"`
 	Status       string    `json:"status,omitempty"`
+	Reason       string    `json:"reason,omitempty"`
 	RequestID    string    `json:"requestId,omitempty"`
 	Source       string    `json:"source"`
 	RemoteAddr   string    `json:"remoteAddr,omitempty"`
@@ -372,6 +374,7 @@ func (store *Store) RecordAuditEvent(ctx context.Context, event AuditEvent) erro
 		Action:       event.Action,
 		Identifier:   event.Identifier,
 		Status:       event.Status,
+		Reason:       event.Reason,
 		RequestID:    event.RequestID,
 		Source:       event.Source,
 		RemoteAddr:   event.RemoteAddr,
@@ -523,6 +526,7 @@ func auditEventFromRecord(record AuditEventRecord) AuditEvent {
 		Action:       record.Action,
 		Identifier:   record.Identifier,
 		Status:       record.Status,
+		Reason:       record.Reason,
 		RequestID:    record.RequestID,
 		Source:       record.Source,
 		RemoteAddr:   record.RemoteAddr,
@@ -543,6 +547,7 @@ func auditEventRecordHash(record AuditEventRecord) string {
 		Action       string `json:"action"`
 		Identifier   string `json:"identifier"`
 		Status       string `json:"status"`
+		Reason       string `json:"reason,omitempty"`
 		RequestID    string `json:"requestId"`
 		Source       string `json:"source"`
 		RemoteAddr   string `json:"remoteAddr"`
@@ -553,6 +558,7 @@ func auditEventRecordHash(record AuditEventRecord) string {
 		Action:       record.Action,
 		Identifier:   record.Identifier,
 		Status:       record.Status,
+		Reason:       record.Reason,
 		RequestID:    record.RequestID,
 		Source:       record.Source,
 		RemoteAddr:   record.RemoteAddr,

@@ -361,6 +361,7 @@ if bin/ardctl search pending.example --registry-url "${registry_url}" --kind ski
 fi
 bin/ardctl admin review approve urn:air:pending.example.com:skill:open-browser-use \
   --registry-url "${registry_url}" \
+  --reason "reviewed live skill fixture" \
   --admin-token "reviewer-token" | grep -q "remote approved urn:air:pending.example.com:skill:open-browser-use"
 bin/ardctl search pending.example --registry-url "${registry_url}" --kind skill --json | grep -q "pending.example.com"
 bin/ardctl admin add skill "${skill_file}" \
@@ -375,12 +376,14 @@ if bin/ardctl search pending.example --registry-url "${registry_url}" --kind ski
 fi
 bin/ardctl admin review approve urn:air:pending.example.com:skill:open-browser-use \
   --registry-url "${registry_url}" \
+  --reason "approved policy update after review" \
   --admin-token "reviewer-token" | grep -q "remote approved urn:air:pending.example.com:skill:open-browser-use"
 bin/ardctl admin status urn:air:pending.example.com:skill:open-browser-use pending \
   --registry-url "${registry_url}" \
   --admin-token "operator-token" | grep -q "remote set urn:air:pending.example.com:skill:open-browser-use status to pending"
 bin/ardctl admin review reject urn:air:pending.example.com:skill:open-browser-use \
   --registry-url "${registry_url}" \
+  --reason "rejecting pending production access" \
   --admin-token "reviewer-token" | grep -q "remote rejected urn:air:pending.example.com:skill:open-browser-use"
 if bin/ardctl search pending.example --registry-url "${registry_url}" --kind skill --json | grep -q "pending.example.com"; then
   echo "rejected review entry is publicly searchable" >&2
@@ -412,6 +415,8 @@ bin/ardctl search browser --registry-url "${registry_url}" --kind skill --json |
 bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-audit.json
 grep -q '"action":"entry.status"' /tmp/ard-e2e-audit.json
 grep -q '"identifier":"urn:air:github.com:skill:open-browser-use"' /tmp/ard-e2e-audit.json
+grep -q '"reason":"reviewed live skill fixture"' /tmp/ard-e2e-audit.json
+grep -q '"reason":"rejecting pending production access"' /tmp/ard-e2e-audit.json
 grep -q '"requestId":"' /tmp/ard-e2e-audit.json
 grep -q '"hash":"' /tmp/ard-e2e-audit.json
 bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_token}" --verify-chain | grep -q "remote audit chain valid"

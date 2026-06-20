@@ -918,8 +918,10 @@ func TestRouterAdminPolicyWithPostgres(t *testing.T) {
 		t.Fatalf("expected pending review entries, got %#v", reviews)
 	}
 
-	approveRequest := httptest.NewRequest(http.MethodPost, "/admin/reviews/urn:air:review.example.com:server:policy-weather/approve", nil)
+	approveBody, _ := json.Marshal(map[string]string{"reason": "source digest and publisher approved"})
+	approveRequest := httptest.NewRequest(http.MethodPost, "/admin/reviews/urn:air:review.example.com:server:policy-weather/approve", bytes.NewReader(approveBody))
 	approveRequest.Header.Set("Authorization", "Bearer test-token")
+	approveRequest.Header.Set("Content-Type", "application/json")
 	approveResponse := httptest.NewRecorder()
 	router.ServeHTTP(approveResponse, approveRequest)
 	if approveResponse.Code != http.StatusOK {
@@ -991,8 +993,10 @@ func TestRouterAdminPolicyWithPostgres(t *testing.T) {
 		t.Fatalf("expected reset pending HTTP 200, got %d: %s", statusResponse.Code, statusResponse.Body.String())
 	}
 
-	rejectRequest := httptest.NewRequest(http.MethodPost, "/admin/reviews/urn:air:review.example.com:server:policy-weather/reject", nil)
+	rejectBody, _ := json.Marshal(map[string]string{"reason": "capability not approved for production"})
+	rejectRequest := httptest.NewRequest(http.MethodPost, "/admin/reviews/urn:air:review.example.com:server:policy-weather/reject", bytes.NewReader(rejectBody))
 	rejectRequest.Header.Set("Authorization", "Bearer test-token")
+	rejectRequest.Header.Set("Content-Type", "application/json")
 	rejectResponse := httptest.NewRecorder()
 	router.ServeHTTP(rejectResponse, rejectRequest)
 	if rejectResponse.Code != http.StatusOK {
@@ -1016,6 +1020,36 @@ func TestRouterAdminPolicyWithPostgres(t *testing.T) {
 	}
 	if len(search.Results) != 0 {
 		t.Fatalf("expected rejected entry to be hidden from search, got %#v", search.Results)
+	}
+
+	auditRequest := httptest.NewRequest(http.MethodGet, "/admin/audit?pageSize=50", nil)
+	auditRequest.Header.Set("Authorization", "Bearer test-token")
+	auditResponse := httptest.NewRecorder()
+	router.ServeHTTP(auditResponse, auditRequest)
+	if auditResponse.Code != http.StatusOK {
+		t.Fatalf("expected review audit HTTP 200, got %d: %s", auditResponse.Code, auditResponse.Body.String())
+	}
+	var audit struct {
+		Items []store.AuditEvent `json:"items"`
+	}
+	if err := json.Unmarshal(auditResponse.Body.Bytes(), &audit); err != nil {
+		t.Fatalf("decode review audit: %v", err)
+	}
+	seenApproveReason := false
+	seenRejectReason := false
+	for _, event := range audit.Items {
+		if event.Identifier != pendingEntry.Identifier {
+			continue
+		}
+		if event.Action == "entry.review.approve" && event.Reason == "source digest and publisher approved" {
+			seenApproveReason = true
+		}
+		if event.Action == "entry.review.reject" && event.Reason == "capability not approved for production" {
+			seenRejectReason = true
+		}
+	}
+	if !seenApproveReason || !seenRejectReason {
+		t.Fatalf("expected review audit reasons, got %#v", audit.Items)
 	}
 
 	blockedEntry := pendingEntry

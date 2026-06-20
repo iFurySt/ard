@@ -47,9 +47,9 @@ Use this document to make secure defaults explicit and legible to agents.
 ## Audit Events
 
 - Admin upsert, lifecycle status, and delete operations append persisted audit events.
-- Audit events record action, identifier, status when relevant, source, remote address,
-  request ID, timestamp, previous hash, and event hash.
-- Audit events do not record admin bearer tokens or request bodies.
+- Audit events record action, identifier, status when relevant, optional review decision
+  reason, source, remote address, request ID, timestamp, previous hash, and event hash.
+- Audit events do not record admin bearer tokens or full request bodies.
 - Use `ardctl admin audit --verify-chain` or `GET /admin/audit/verify` to verify that
   persisted audit events still match their hash chain.
 - The hash chain is tamper-evident metadata inside the same database. It is not a

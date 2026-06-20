@@ -373,6 +373,7 @@ func newAdminReviewListCommand(options *adminOptions) *cobra.Command {
 }
 
 func newAdminReviewDecisionCommand(options *adminOptions, action string, short string, pastTense string) *cobra.Command {
+	var reason string
 	command := &cobra.Command{
 		Use:   action + " IDENTIFIER",
 		Short: short,
@@ -383,13 +384,18 @@ func newAdminReviewDecisionCommand(options *adminOptions, action string, short s
 				return err
 			}
 			ctx := adminOperationContext(cmd.Context(), *options)
-			if _, err := adminRequest(ctx, *options, http.MethodPost, "/admin/reviews/"+url.PathEscape(identifier)+"/"+action, nil); err != nil {
+			payload, err := json.Marshal(map[string]string{"reason": reason})
+			if err != nil {
+				return err
+			}
+			if _, err := adminRequest(ctx, *options, http.MethodPost, "/admin/reviews/"+url.PathEscape(identifier)+"/"+action, payload); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "remote %s %s\n", pastTense, identifier)
 			return nil
 		},
 	}
+	command.Flags().StringVar(&reason, "reason", "", "Review decision reason to record in the remote audit log")
 	return command
 }
 
@@ -439,6 +445,7 @@ type storeAuditEvent struct {
 	Action       string `json:"action"`
 	Identifier   string `json:"identifier,omitempty"`
 	Status       string `json:"status,omitempty"`
+	Reason       string `json:"reason,omitempty"`
 	RequestID    string `json:"requestId,omitempty"`
 	PreviousHash string `json:"previousHash,omitempty"`
 	Hash         string `json:"hash,omitempty"`
