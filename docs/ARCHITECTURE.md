@@ -1,39 +1,38 @@
 # Architecture
 
-This file is the top-level map for `ard`. The project is currently in bootstrap, so the
-sections below describe the target architecture and boundaries that future implementation
-should follow.
+This file is the top-level map for `ard`. The project is now a Go implementation using
+Cobra, Gin, GORM, and Postgres.
 
 ## Product Surfaces
 
 - Registry server: self-hosted ARD registry exposing discovery, search, health, and
-  catalog endpoints.
-- CLI: operational entry point for serve, add, crawl, verify, search, and export flows.
-- Client library: standards-aligned ARD client for registry search and catalog traversal.
-- Publisher kit: helpers that convert existing MCP, Skills, A2A, OpenAPI, and URL
-  artifacts into ARD catalog entries.
-- Verification engine: reusable validation and trust checks shared by server and CLI.
+  catalog endpoints through Gin.
+- CLI: Cobra operational entry point for `serve`, `add catalog`, and `search` today;
+  `crawl`, `verify`, and export flows remain planned.
+- Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
+- Catalog ingestion: `ard add catalog` loads local or remote `ai-catalog.json` files,
+  validates them, and persists entries.
+- Verification engine: initial schema-level checks cover `urn:air:`, required fields,
+  `url`/`data` exclusivity, URL syntax, and representative query count.
 
 ## Intended Repository Shape
 
-- `cmd/ard/`: CLI entry point when implementation begins.
-- `apps/registry/`: deployable registry server if the server is separated from the CLI
-  binary.
-- `packages/ard/`: shared ARD models, schemas, request/response handling, and client code.
-- `packages/catalog/`: catalog parsing, generation, crawling, and federation traversal.
-- `packages/index/`: indexing and retrieval abstractions.
-- `packages/verify/`: schema validation, URN checks, publisher-domain checks, trust
-  metadata validation, and artifact pinning.
-- `packages/conformance/`: wrappers or integration glue for upstream ARD conformance
-  checks, if needed after implementation begins.
-- `packages/adapters/`: MCP, Skills, A2A, OpenAPI, and future resource adapters.
+- `cmd/ard/`: binary entry point.
+- `internal/cli/`: Cobra command tree.
+- `internal/httpapi/`: Gin router and HTTP handlers.
+- `internal/ard/`: ARD models, media type constants, filters, and validation.
+- `internal/catalog/`: local and HTTP catalog loading.
+- `internal/store/`: GORM/Postgres persistence and search.
+- `internal/config/`: environment and CLI config helpers.
+- `packages/`: reserved for future public SDK packages once the internal API stabilizes.
+- `apps/registry/`: reserved for a separate deployable server only if the single binary
+  becomes limiting.
 - `infra/`: Docker, deployment, and environment definitions.
 - `scripts/`: repository automation that agents can run directly.
 - `docs/`: repository knowledge base and system of record.
 
-The exact language and package layout can change, but the boundaries above should remain
-visible. A Go implementation is a strong default because it supports a single binary,
-simple containers, and enterprise-friendly deployment.
+Keep the internal boundaries visible. Only promote packages out of `internal/` when there
+is a stable public SDK contract.
 
 ## Runtime Topology
 
@@ -55,9 +54,10 @@ metadata store + search index
 ARD /search API + CLI client
 ```
 
-The first storage target should be embedded and operationally boring, such as SQLite with
-FTS. The architecture should leave room for Postgres, OpenSearch, Meilisearch, or vector
-backends later, but those should not be required for a basic deployment.
+The first storage target is Postgres through GORM. Search is currently simple
+case-insensitive text recall over persisted `search_text`, with score computed as
+semantic relevance approximation. More advanced ranking can replace this behind the store
+boundary without changing HTTP contracts.
 
 ## Core Data Flow
 
@@ -87,16 +87,17 @@ backends later, but those should not be required for a basic deployment.
 - Specification behavior should be derived from `ards-project/ard-spec`, especially
   `spec/ard.md`, `spec/schemas/`, ADRs, and `conformance/`.
 
-## Initial API Targets
+## API Targets
 
 - `GET /.well-known/ai-catalog.json`: advertise this registry and any configured catalog
-  entries.
-- `POST /search`: ARD search endpoint.
-- `POST /explore`: optional; may initially return `501 Not Implemented`.
+  entries. Implemented.
+- `POST /search`: ARD search endpoint. Implemented.
+- `POST /explore`: optional; currently returns `501 Not Implemented`.
 - `GET /agents`: optional deterministic browse endpoint; useful for B2B portals but not
-  required for the first conformance pass.
-- `GET /health`: deployment health.
-- CLI equivalents: `serve`, `add`, `crawl`, `verify`, `search`, and `export`.
+  implemented yet.
+- `GET /health`: deployment health. Implemented.
+- CLI equivalents: `serve`, `add catalog`, and `search` are implemented; `crawl`,
+  `verify`, and `export` are planned.
 
 ## Specification Alignment
 
@@ -123,8 +124,7 @@ third-party or generated directory and record the source commit.
 
 ## Open Decisions
 
-- Final implementation language and framework.
-- Embedded storage schema.
+- Whether to add an embedded non-Postgres development mode.
 - Ranking strategy for the first release.
 - Trust manifest verification depth for MVP.
 - Whether the server and CLI ship as one binary or separate packages.

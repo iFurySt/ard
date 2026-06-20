@@ -28,9 +28,23 @@ ard search "query observability logs" --kind mcp
 ard verify https://example.com/.well-known/ai-catalog.json
 ```
 
+## Try It
+
+```sh
+make build
+make test-integration
+
+bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/acme-ai-catalog.json
+bin/ard --database-url "$DATABASE_URL" serve
+bin/ard search "weather forecast" --kind mcp --json
+```
+
 ## Status
 
-This repository is in early bootstrap. Implementation should track the upstream
+This repository is in early implementation. The first milestone includes a Go CLI,
+Gin-based registry server, GORM/Postgres persistence, catalog import, and ARD search.
+
+Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including
 `urn:air:` identifiers, `application/mcp-server-card+json`, and the official conformance
 tools.
