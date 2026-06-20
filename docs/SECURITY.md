@@ -77,6 +77,7 @@ Use this document to make secure defaults explicit and legible to agents.
 - Configure upstream registry referrals only for networks that are acceptable recipients
   of those queries.
 - Admin bearer tokens are not forwarded to upstream federation requests.
+- `X-Request-ID` is forwarded to upstream federation requests for log correlation.
 - Upstream federation requests are forced to `federation=none` to reduce accidental
   recursive data sharing.
 

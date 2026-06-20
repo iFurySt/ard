@@ -14,6 +14,8 @@ Define the operational bar for the repository here.
 - If absent, the registry generates a UUID request ID.
 - Admin mutation audit events store the request ID so operators can correlate an API
   response, access log line, and audit event.
+- Server-side `federation=auto` upstream requests propagate the inbound `X-Request-ID`
+  so local and upstream registry logs can be correlated.
 
 ## Logging
 
@@ -38,12 +40,13 @@ Define the operational bar for the repository here.
 - The registry queries at most three active upstream registry referrals per search.
 - Upstream HTTP requests use a 10 second client timeout, a bounded response reader, and
   `federation=none` to avoid recursive registry fan-out.
+- Upstream HTTP requests propagate `X-Request-ID`, but do not forward admin bearer
+  tokens.
 - Upstream failures are ignored for the current search response so local search remains
   available.
 
 ## Current Gaps
 
 - Histograms, runtime metrics, and tracing are not implemented yet.
-- Request correlation IDs are not propagated to outbound artifact or federation fetches
-  yet.
+- Request correlation IDs are not propagated to outbound artifact fetches yet.
 - There is no documented dashboard or incident response workflow yet.

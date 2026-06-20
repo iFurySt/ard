@@ -163,7 +163,8 @@ func (server Server) search(context *gin.Context) {
 			})
 			return
 		}
-		upstreamResults := federation.NewClient().Search(context.Request.Context(), referrals, request)
+		upstreamContext := federation.WithRequestID(context.Request.Context(), requestIDFromContext(context))
+		upstreamResults := federation.NewClient().Search(upstreamContext, referrals, request)
 		response.Results = mergeSearchResults(page.Results, upstreamResults, request.NormalizedPageSize())
 	}
 	context.JSON(http.StatusOK, response)

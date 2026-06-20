@@ -11,6 +11,7 @@ import (
 
 func TestClientSearchForcesNonRecursiveFederation(t *testing.T) {
 	var seenRequest ard.SearchRequest
+	seenRequestID := ""
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/search" {
 			http.Error(response, "unexpected path", http.StatusNotFound)
@@ -20,6 +21,7 @@ func TestClientSearchForcesNonRecursiveFederation(t *testing.T) {
 			http.Error(response, "authorization header leaked", http.StatusBadRequest)
 			return
 		}
+		seenRequestID = request.Header.Get("X-Request-ID")
 		if err := json.NewDecoder(request.Body).Decode(&seenRequest); err != nil {
 			http.Error(response, err.Error(), http.StatusBadRequest)
 			return
@@ -40,7 +42,8 @@ func TestClientSearchForcesNonRecursiveFederation(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 
-	results := NewClient().Search(t.Context(), []ard.CatalogEntry{
+	ctx := WithRequestID(t.Context(), "federation-unit-request")
+	results := NewClient().Search(ctx, []ard.CatalogEntry{
 		{
 			Identifier: "urn:air:upstream.example.com:registry:public",
 			Type:       ard.TypeAIRegistry,
@@ -54,6 +57,9 @@ func TestClientSearchForcesNonRecursiveFederation(t *testing.T) {
 
 	if seenRequest.Federation != "none" {
 		t.Fatalf("expected upstream federation none, got %q", seenRequest.Federation)
+	}
+	if seenRequestID != "federation-unit-request" {
+		t.Fatalf("expected request ID propagation, got %q", seenRequestID)
 	}
 	if len(results) != 1 {
 		t.Fatalf("expected one upstream result, got %#v", results)

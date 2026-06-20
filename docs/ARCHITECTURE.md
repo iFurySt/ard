@@ -24,7 +24,8 @@ Cobra, Gin, GORM, and Postgres.
   client-followed federation.
 - Federation auto merge: `POST /search` supports `federation=auto` by querying active
   registry referrals, forcing upstream requests to `federation=none`, and merging
-  upstream results with local results.
+  upstream results with local results. Upstream requests propagate `X-Request-ID` for
+  log correlation.
 - Catalog ingestion: `ard add catalog` loads local or remote `ai-catalog.json` files,
   validates them, and persists entries.
 - Catalog export: `ardctl export catalog` writes persisted registry entries as a
@@ -140,7 +141,7 @@ boundary without changing HTTP contracts.
   timeout controls. Auto federation currently queries at most three upstream registry
   referrals, uses non-recursive upstream search requests, limits response bodies, and
   returns a local-first merged result set. Local page tokens are not forwarded to
-  upstream registries.
+  upstream registries. Request IDs are forwarded for correlation; admin tokens are not.
 - Secrets and tokens may be used during request scope only; they must not be stored or
   emitted in plain text.
 - Admin API routes must remain disabled by default and require an authorized
@@ -202,7 +203,8 @@ conformance tool over older reference implementations. In particular:
 - Keep federation controlled by root-level `SearchRequest.federation`. `referrals` mode
   returns registry entries in `SearchResponse.referrals`; `auto` mode performs a bounded
   server-side upstream merge. Upstream auto requests are sent with `federation=none` to
-  avoid recursive traversal and without the local registry's page token.
+  avoid recursive traversal and without the local registry's page token. They include the
+  inbound `X-Request-ID` when one is available.
 
 Do not vendor or fork the upstream spec content casually. If the implementation needs
 schemas or conformance tools in-repo, add a pinned, documented copy under a clearly named

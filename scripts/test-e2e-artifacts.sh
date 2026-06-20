@@ -111,6 +111,9 @@ class Handler(BaseHTTPRequestHandler):
         length = int(self.headers.get("content-length", "0"))
         if length:
             self.rfile.read(length)
+        request_id = self.headers.get("x-request-id", "")
+        if request_id:
+            print(json.dumps({"event": "upstream_request", "requestId": request_id}), flush=True)
         payload = {
             "results": [
                 {
@@ -278,6 +281,13 @@ grep -q '"referrals"' /tmp/ard-e2e-referrals-search.json
 grep -q "E2E Upstream Registry" /tmp/ard-e2e-referrals-search.json
 bin/ardctl search federated --registry-url "${registry_url}" --kind mcp --federation auto --json >/tmp/ard-e2e-auto-search.json
 grep -q "Federated Weather MCP" /tmp/ard-e2e-auto-search.json
+curl -fsS \
+  -H "Content-Type: application/json" \
+  -H "X-Request-ID: ard-e2e-auto-federation" \
+  -d '{"query":{"text":"federated","filter":{"type":["application/mcp-server-card+json"]}},"federation":"auto","pageSize":10}' \
+  "${registry_url}/search" >/tmp/ard-e2e-auto-correlation.json
+grep -q "Federated Weather MCP" /tmp/ard-e2e-auto-correlation.json
+grep -q '"requestId": "ard-e2e-auto-federation"' /tmp/ard-e2e-upstream.log
 bin/ardctl search browser --registry-url "${registry_url}" --kind skill --json | grep -q "open-browser-use"
 bin/ardctl search pet --registry-url "${registry_url}" --kind openapi --json | grep -q "Swagger Petstore - OpenAPI 3.0"
 bin/ardctl search hello --registry-url "${registry_url}" --kind a2a --json | grep -q "Hello World Agent"

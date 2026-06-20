@@ -31,6 +31,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	}
 	var upstreamMu sync.Mutex
 	upstreamRequests := []ard.SearchRequest{}
+	upstreamRequestIDs := []string{}
 	upstreamServer := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		if request.URL.Path != "/search" {
 			http.Error(response, "unexpected upstream path", http.StatusNotFound)
@@ -43,6 +44,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 		}
 		upstreamMu.Lock()
 		upstreamRequests = append(upstreamRequests, upstreamRequest)
+		upstreamRequestIDs = append(upstreamRequestIDs, request.Header.Get("X-Request-ID"))
 		upstreamMu.Unlock()
 		if upstreamRequest.Federation != "none" {
 			http.Error(response, "upstream federation must be none", http.StatusBadRequest)
@@ -236,6 +238,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	})
 	autoRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(autoBody))
 	autoRequest.Header.Set("Content-Type", "application/json")
+	autoRequest.Header.Set("X-Request-ID", "auto-federation-router-test")
 	autoResponse := httptest.NewRecorder()
 	router.ServeHTTP(autoResponse, autoRequest)
 	if autoResponse.Code != http.StatusOK {
@@ -266,6 +269,16 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 		if request.PageToken != "" {
 			t.Fatalf("expected upstream requests to omit local page token, got %#v", upstreamRequests)
 		}
+	}
+	foundRequestID := false
+	for _, requestID := range upstreamRequestIDs {
+		if requestID != "auto-federation-router-test" {
+			continue
+		}
+		foundRequestID = true
+	}
+	if !foundRequestID {
+		t.Fatalf("expected upstream request ID propagation, got %#v", upstreamRequestIDs)
 	}
 }
 
