@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/policy"
 	"github.com/ifuryst/ard/internal/store"
 )
 
@@ -356,5 +357,106 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 	}
 	if !seenRequestID {
 		t.Fatalf("expected status audit event to include request id, got %#v", audit.Items)
+	}
+}
+
+func TestRouterAdminPolicyWithPostgres(t *testing.T) {
+	databaseURL := os.Getenv("ARD_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("set ARD_TEST_DATABASE_URL to run Postgres integration tests")
+	}
+	ctx := context.Background()
+	registryStore, err := store.Open(databaseURL)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer registryStore.Close()
+	if err := registryStore.AutoMigrate(); err != nil {
+		t.Fatalf("migrate store: %v", err)
+	}
+	if _, err := registryStore.DeleteEntry(ctx, "urn:air:review.example.com:server:policy-weather"); err != nil {
+		t.Fatalf("clean pending policy entry: %v", err)
+	}
+	if _, err := registryStore.DeleteEntry(ctx, "urn:air:blocked.example.com:server:blocked-weather"); err != nil {
+		t.Fatalf("clean blocked policy entry: %v", err)
+	}
+
+	router := NewRouterWithOptions(registryStore, Options{
+		AdminToken: "test-token",
+		Policy: &policy.Policy{
+			PendingPublishers: []string{"review.example.com"},
+			DenyPublishers:    []string{"blocked.example.com"},
+		},
+	})
+
+	pendingEntry := ard.CatalogEntry{
+		Identifier:            "urn:air:review.example.com:server:policy-weather",
+		DisplayName:           "Quarantine Policy MCP",
+		Type:                  ard.TypeMCPServerCard,
+		URL:                   "https://review.example.com/weather.json",
+		Description:           "Quarantine policy test resource.",
+		RepresentativeQueries: []string{"quarantine policy", "quarantine review"},
+	}
+	pendingBody, _ := json.Marshal(pendingEntry)
+	pendingRequest := httptest.NewRequest(http.MethodPost, "/admin/entries", bytes.NewReader(pendingBody))
+	pendingRequest.Header.Set("Authorization", "Bearer test-token")
+	pendingRequest.Header.Set("Content-Type", "application/json")
+	pendingResponse := httptest.NewRecorder()
+	router.ServeHTTP(pendingResponse, pendingRequest)
+	if pendingResponse.Code != http.StatusCreated {
+		t.Fatalf("expected policy pending create HTTP 201, got %d: %s", pendingResponse.Code, pendingResponse.Body.String())
+	}
+
+	searchBody, _ := json.Marshal(ard.SearchRequest{Query: ard.SearchQuery{Text: "quarantine"}, PageSize: 10})
+	searchRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(searchBody))
+	searchRequest.Header.Set("Content-Type", "application/json")
+	searchResponse := httptest.NewRecorder()
+	router.ServeHTTP(searchResponse, searchRequest)
+	if searchResponse.Code != http.StatusOK {
+		t.Fatalf("expected search HTTP 200, got %d: %s", searchResponse.Code, searchResponse.Body.String())
+	}
+	var search ard.SearchResponse
+	if err := json.Unmarshal(searchResponse.Body.Bytes(), &search); err != nil {
+		t.Fatalf("decode search: %v", err)
+	}
+	if len(search.Results) != 0 {
+		t.Fatalf("expected policy pending entry to be hidden from search, got %#v", search.Results)
+	}
+
+	listRequest := httptest.NewRequest(http.MethodGet, "/admin/entries?status=pending", nil)
+	listRequest.Header.Set("Authorization", "Bearer test-token")
+	listResponse := httptest.NewRecorder()
+	router.ServeHTTP(listResponse, listRequest)
+	if listResponse.Code != http.StatusOK {
+		t.Fatalf("expected pending list HTTP 200, got %d: %s", listResponse.Code, listResponse.Body.String())
+	}
+	var list ard.ListResponse
+	if err := json.Unmarshal(listResponse.Body.Bytes(), &list); err != nil {
+		t.Fatalf("decode pending list: %v", err)
+	}
+	foundPending := false
+	for _, entry := range list.Items {
+		if entry.Identifier == pendingEntry.Identifier {
+			foundPending = true
+			if entry.Metadata["ard.status"] != store.LifecycleStatusPending {
+				t.Fatalf("expected pending lifecycle metadata, got %#v", entry.Metadata)
+			}
+		}
+	}
+	if !foundPending {
+		t.Fatalf("expected pending entry in admin list, got %#v", list)
+	}
+
+	blockedEntry := pendingEntry
+	blockedEntry.Identifier = "urn:air:blocked.example.com:server:blocked-weather"
+	blockedEntry.DisplayName = "Blocked Weather MCP"
+	blockedBody, _ := json.Marshal(blockedEntry)
+	blockedRequest := httptest.NewRequest(http.MethodPost, "/admin/entries", bytes.NewReader(blockedBody))
+	blockedRequest.Header.Set("Authorization", "Bearer test-token")
+	blockedRequest.Header.Set("Content-Type", "application/json")
+	blockedResponse := httptest.NewRecorder()
+	router.ServeHTTP(blockedResponse, blockedRequest)
+	if blockedResponse.Code != http.StatusForbidden {
+		t.Fatalf("expected policy deny HTTP 403, got %d: %s", blockedResponse.Code, blockedResponse.Body.String())
 	}
 }

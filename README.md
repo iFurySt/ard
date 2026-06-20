@@ -22,6 +22,7 @@ found.
 ```sh
 ard serve
 ard-server --addr :8080 --admin-token "$ARD_ADMIN_TOKEN"
+ard-server --policy-file ./policy.json --admin-token "$ARD_ADMIN_TOKEN"
 ard add catalog https://example.com/.well-known/ai-catalog.json
 ardctl add catalog https://example.com/.well-known/ai-catalog.json
 ard add mcp https://example.com/mcp/server.json
@@ -72,11 +73,12 @@ Gin-based registry server, GORM/Postgres persistence, catalog import, well-known
 crawl, MCP/A2A/Skill/OpenAPI artifact onboarding, catalog verification, ARD search, browse, and
 explore facets, catalog export, local listing, entry removal, and token-protected admin
 API routes with an `ardctl admin` client. Admin flows can disable, reactivate, filter
-entries, and inspect mutation audit events without exposing inactive resources through
-public discovery. It builds three entry points: `ard` for the combined toolkit, `ardctl`
-for CLI/client operations, and `ard-server` for the registry server. CI runs formatting
-checks, tests, builds, and Postgres integration tests.
-`make test-e2e` runs the real artifact onboarding flow with live MCP and Skill examples.
+entries, apply ingestion policy, and inspect mutation audit events without exposing
+inactive resources through public discovery. It builds three entry points: `ard` for the
+combined toolkit, `ardctl` for CLI/client operations, and `ard-server` for the registry
+server. CI runs formatting checks, tests, builds, and Postgres integration tests.
+`make test-e2e` runs the real artifact onboarding flow with live MCP, Skill, OpenAPI,
+and policy-gate examples.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including
@@ -87,6 +89,7 @@ See:
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Product Sense](docs/PRODUCT_SENSE.md)
+- [Policy](docs/POLICY.md)
 - [ARD Spec Working Notes](docs/references/ard-spec-working-notes.md)
 
 ## License

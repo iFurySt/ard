@@ -24,7 +24,7 @@ func TestPostgresImportAndSearch(t *testing.T) {
 	}
 	if err := registryStore.db.Exec(
 		"DELETE FROM catalog_entry_records WHERE identifier IN ?",
-		[]string{"urn:air:acme.com:server:weather", "urn:air:acme.com:agent:assistant"},
+		[]string{"urn:air:acme.com:server:weather", "urn:air:acme.com:agent:assistant", "urn:air:review.acme.com:server:pending-weather"},
 	).Error; err != nil {
 		t.Fatalf("clean entries: %v", err)
 	}
@@ -53,6 +53,38 @@ func TestPostgresImportAndSearch(t *testing.T) {
 	}
 	if err := registryStore.UpsertCatalog(ctx, catalog, "integration-test"); err != nil {
 		t.Fatalf("upsert catalog: %v", err)
+	}
+
+	pendingCatalog := ard.Catalog{
+		SpecVersion: "1.0",
+		Entries: []ard.CatalogEntry{
+			{
+				Identifier:            "urn:air:review.acme.com:server:pending-weather",
+				DisplayName:           "Quarantine Review MCP",
+				Type:                  ard.TypeMCPServerCard,
+				URL:                   "https://review.acme.com/mcp/pending-weather.json",
+				Description:           "Quarantine MCP server awaiting policy review.",
+				RepresentativeQueries: []string{"quarantine lookup", "quarantine review"},
+			},
+		},
+	}
+	if err := registryStore.UpsertCatalogWithStatuses(ctx, pendingCatalog, "integration-test", map[string]string{
+		"urn:air:review.acme.com:server:pending-weather": LifecycleStatusPending,
+	}); err != nil {
+		t.Fatalf("upsert pending catalog: %v", err)
+	}
+
+	pendingResults, err := registryStore.Search(ctx, ard.SearchRequest{
+		Query: ard.SearchQuery{
+			Text: "quarantine",
+		},
+		PageSize: 10,
+	}, "integration-test")
+	if err != nil {
+		t.Fatalf("search pending entry: %v", err)
+	}
+	if len(pendingResults) != 0 {
+		t.Fatalf("expected pending entry to be hidden from search, got %d", len(pendingResults))
 	}
 
 	results, err := registryStore.Search(ctx, ard.SearchRequest{

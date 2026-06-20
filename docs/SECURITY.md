@@ -21,6 +21,15 @@ Use this document to make secure defaults explicit and legible to agents.
 - Lifecycle status is implementation metadata and should not be treated as a substitute
   for role-based authorization, policy decisions, or signed trust verification.
 
+## Ingestion Policy
+
+- Set `ARD_POLICY_FILE` or pass `--policy-file` to apply a JSON ingestion policy.
+- Policy can deny entries by publisher or media type before persistence.
+- Policy can create new entries as `pending` by publisher or media type.
+- Denied entries must not be persisted or exposed through public discovery.
+- Policy files should be versioned with the deployment configuration and reviewed like
+  code.
+
 ## Audit Events
 
 - Admin upsert, lifecycle status, and delete operations append persisted audit events.
@@ -41,6 +50,7 @@ Use this document to make secure defaults explicit and legible to agents.
 - No role-based authorization yet.
 - No token rotation workflow yet.
 - No tamper-evident audit log yet.
+- No signed policy bundle or external policy engine yet.
 - No signature or trust manifest verification beyond schema-level validation yet.
 
 ## Scope

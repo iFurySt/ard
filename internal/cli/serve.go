@@ -5,6 +5,7 @@ import (
 
 	"github.com/ifuryst/ard/internal/config"
 	"github.com/ifuryst/ard/internal/httpapi"
+	"github.com/ifuryst/ard/internal/policy"
 	"github.com/ifuryst/ard/internal/store"
 	"github.com/spf13/cobra"
 )
@@ -33,8 +34,18 @@ func runServer(cmd *cobra.Command, root *rootOptions, addr string) error {
 		return err
 	}
 
+	var loadedPolicy *policy.Policy
+	if policyFile := config.PolicyFile(root.policyFile); policyFile != "" {
+		parsedPolicy, err := policy.LoadFile(policyFile)
+		if err != nil {
+			return fmt.Errorf("load policy: %w", err)
+		}
+		loadedPolicy = &parsedPolicy
+	}
+
 	router := httpapi.NewRouterWithOptions(registryStore, httpapi.Options{
 		AdminToken: config.AdminToken(root.adminToken),
+		Policy:     loadedPolicy,
 	})
 	fmt.Fprintf(cmd.ErrOrStderr(), "listening on %s\n", addr)
 	return router.Run(addr)

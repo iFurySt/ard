@@ -27,6 +27,8 @@ Cobra, Gin, GORM, and Postgres.
 - Lifecycle governance: persisted entries have an implementation-owned lifecycle status
   of `active`, `pending`, or `disabled`. Public discovery, search, explore, and catalog
   export only expose `active` entries; admin list can include and filter all statuses.
+- Ingestion policy: an optional `ARD_POLICY_FILE` / `--policy-file` JSON policy can deny
+  entries or create new entries as `pending` based on publisher or media type.
 - Audit log: admin mutations append persisted events for upsert, status changes, and
   deletion with action, identifier, status, source, remote address, request ID, and
   timestamp.
@@ -116,6 +118,8 @@ boundary without changing HTTP contracts.
   when enabled.
 - Inactive lifecycle states are implementation metadata, not ARD catalog schema fields.
   Do not export disabled or pending entries through public catalog/search surfaces.
+- Policy evaluation must happen before persistence for local add/crawl and remote admin
+  imports. Denied entries must not be persisted.
 - Specification behavior should be derived from `ards-project/ard-spec`, especially
   `spec/ard.md`, `spec/schemas/`, ADRs, and `conformance/`.
 
@@ -171,5 +175,6 @@ third-party or generated directory and record the source commit.
 - Whether to add an embedded non-Postgres development mode.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.
+- Whether to replace the MVP JSON ingestion policy with a richer policy engine.
 
 When these decisions are made, update this file in the same task as the code.

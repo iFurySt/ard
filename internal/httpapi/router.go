@@ -2,22 +2,26 @@ package httpapi
 
 import (
 	"crypto/subtle"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/policy"
 	"github.com/ifuryst/ard/internal/store"
 )
 
 type Server struct {
 	store      *store.Store
 	adminToken string
+	policy     *policy.Policy
 }
 
 type Options struct {
 	AdminToken string
+	Policy     *policy.Policy
 }
 
 func NewRouter(store *store.Store) *gin.Engine {
@@ -26,7 +30,7 @@ func NewRouter(store *store.Store) *gin.Engine {
 
 func NewRouterWithOptions(store *store.Store, options Options) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
-	server := Server{store: store, adminToken: strings.TrimSpace(options.AdminToken)}
+	server := Server{store: store, adminToken: strings.TrimSpace(options.AdminToken), policy: options.Policy}
 	router := gin.New()
 	router.Use(requestIDMiddleware(), jsonAccessLogMiddleware(), gin.Recovery())
 
@@ -207,14 +211,19 @@ func (server Server) adminUpsertEntry(context *gin.Context) {
 		})
 		return
 	}
-	if err := server.store.UpsertCatalog(context.Request.Context(), catalog, "admin-api"); err != nil {
+	statuses, err := server.evaluatePolicy(catalog)
+	if err != nil {
+		server.writePolicyError(context, err)
+		return
+	}
+	if err := server.store.UpsertCatalogWithStatuses(context.Request.Context(), catalog, "admin-api", statuses); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
 		})
 		return
 	}
-	if err := server.recordAuditEvent(context, "entry.upsert", entry.Identifier, ""); err != nil {
+	if err := server.recordAuditEvent(context, "entry.upsert", entry.Identifier, statuses[entry.Identifier]); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
@@ -240,7 +249,12 @@ func (server Server) adminUpsertCatalog(context *gin.Context) {
 		})
 		return
 	}
-	if err := server.store.UpsertCatalog(context.Request.Context(), catalog, "admin-api"); err != nil {
+	statuses, err := server.evaluatePolicy(catalog)
+	if err != nil {
+		server.writePolicyError(context, err)
+		return
+	}
+	if err := server.store.UpsertCatalogWithStatuses(context.Request.Context(), catalog, "admin-api", statuses); err != nil {
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
@@ -248,7 +262,7 @@ func (server Server) adminUpsertCatalog(context *gin.Context) {
 		return
 	}
 	for _, entry := range catalog.Entries {
-		if err := server.recordAuditEvent(context, "catalog.upsert", entry.Identifier, ""); err != nil {
+		if err := server.recordAuditEvent(context, "catalog.upsert", entry.Identifier, statuses[entry.Identifier]); err != nil {
 			context.JSON(http.StatusInternalServerError, gin.H{
 				"errorCode": "INTERNAL_ERROR",
 				"message":   err.Error(),
@@ -274,6 +288,30 @@ func (server Server) adminAuditEvents(context *gin.Context) {
 	context.JSON(http.StatusOK, gin.H{
 		"items": events,
 		"total": total,
+	})
+}
+
+func (server Server) evaluatePolicy(catalog ard.Catalog) (map[string]string, error) {
+	if server.policy == nil {
+		return nil, nil
+	}
+	statuses, _, err := server.policy.EvaluateCatalog(catalog)
+	return statuses, err
+}
+
+func (server Server) writePolicyError(context *gin.Context, err error) {
+	var denied policy.DeniedError
+	if errors.As(err, &denied) {
+		context.JSON(http.StatusForbidden, gin.H{
+			"errorCode":  "POLICY_DENIED",
+			"message":    denied.Error(),
+			"identifier": denied.Identifier,
+		})
+		return
+	}
+	context.JSON(http.StatusBadRequest, gin.H{
+		"errorCode": "POLICY_INVALID",
+		"message":   err.Error(),
 	})
 }
 

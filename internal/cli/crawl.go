@@ -34,7 +34,11 @@ func newCrawlCommand(root *rootOptions) *cobra.Command {
 			if err := registryStore.AutoMigrate(); err != nil {
 				return err
 			}
-			if err := registryStore.UpsertCatalog(ctx, loadedCatalog, catalogURL); err != nil {
+			statuses, err := evaluatePolicy(root, loadedCatalog)
+			if err != nil {
+				return err
+			}
+			if err := registryStore.UpsertCatalogWithStatuses(ctx, loadedCatalog, catalogURL, statuses); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), store.FormatCatalogImport(len(loadedCatalog.Entries), catalogURL))

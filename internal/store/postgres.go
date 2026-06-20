@@ -106,9 +106,17 @@ func (store *Store) Close() error {
 }
 
 func (store *Store) UpsertCatalog(ctx context.Context, catalog ard.Catalog, source string) error {
+	return store.UpsertCatalogWithStatuses(ctx, catalog, source, nil)
+}
+
+func (store *Store) UpsertCatalogWithStatuses(ctx context.Context, catalog ard.Catalog, source string, statuses map[string]string) error {
 	records := make([]CatalogEntryRecord, 0, len(catalog.Entries))
 	for _, entry := range catalog.Entries {
-		record, err := recordFromEntry(entry, source)
+		status := LifecycleStatusActive
+		if statuses != nil && statuses[entry.Identifier] != "" {
+			status = statuses[entry.Identifier]
+		}
+		record, err := recordFromEntryWithStatus(entry, source, status)
 		if err != nil {
 			return err
 		}
@@ -371,6 +379,14 @@ func (store *Store) matchingRecords(ctx context.Context, searchQuery ard.SearchQ
 }
 
 func recordFromEntry(entry ard.CatalogEntry, source string) (CatalogEntryRecord, error) {
+	return recordFromEntryWithStatus(entry, source, LifecycleStatusActive)
+}
+
+func recordFromEntryWithStatus(entry ard.CatalogEntry, source string, status string) (CatalogEntryRecord, error) {
+	normalizedStatus, err := NormalizeLifecycleStatus(status)
+	if err != nil {
+		return CatalogEntryRecord{}, err
+	}
 	return CatalogEntryRecord{
 		Identifier:            entry.Identifier,
 		DisplayName:           entry.DisplayName,
@@ -386,7 +402,7 @@ func recordFromEntry(entry ard.CatalogEntry, source string) (CatalogEntryRecord,
 		Metadata:              jsonMap(entry.Metadata),
 		TrustManifest:         jsonMap(entry.TrustManifest),
 		Source:                source,
-		LifecycleStatus:       LifecycleStatusActive,
+		LifecycleStatus:       normalizedStatus,
 		SearchText:            searchText(entry),
 	}, nil
 }

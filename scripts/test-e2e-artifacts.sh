@@ -9,6 +9,7 @@ admin_token="${ARD_E2E_ADMIN_TOKEN:-test-token}"
 database_url="postgres://ard:ard@127.0.0.1:${postgres_port}/ard?sslmode=disable"
 registry_url="http://127.0.0.1:${registry_port}"
 export_file="$(mktemp /tmp/ard-e2e-export-XXXXXX.json)"
+policy_file="$(mktemp /tmp/ard-e2e-policy-XXXXXX.json)"
 conformance_bin="${ARD_CONFORMANCE_BIN:-../ard-spec/conformance/bin/conformance-test}"
 
 mcp_card_url="https://raw.githubusercontent.com/clauxel/agentmemory-mcp/main/server.json"
@@ -25,11 +26,19 @@ cleanup() {
     wait "${fixture_pid}" >/dev/null 2>&1 || true
   fi
   docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
-  rm -f "${export_file}"
+  rm -f "${export_file}" "${policy_file}"
 }
 trap cleanup EXIT
 
 make build
+
+cat >"${policy_file}" <<'JSON'
+{
+  "version": "1",
+  "pendingPublishers": ["pending.example.com"],
+  "denyPublishers": ["blocked.example.com"]
+}
+JSON
 
 docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
 docker run \
@@ -62,7 +71,8 @@ curl -fsS "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" >/dev/null
 bin/ard-server \
   --database-url "${database_url}" \
   --addr "127.0.0.1:${registry_port}" \
-  --admin-token "${admin_token}" >/tmp/ard-e2e-registry.log 2>&1 &
+  --admin-token "${admin_token}" \
+  --policy-file "${policy_file}" >/tmp/ard-e2e-registry.log 2>&1 &
 registry_pid=$!
 for _ in $(seq 1 30); do
   if curl -fsS "${registry_url}/health" >/dev/null 2>&1; then
@@ -115,6 +125,25 @@ bin/ardctl search memory --registry-url "${registry_url}" --kind mcp --json | gr
 bin/ardctl search browser --registry-url "${registry_url}" --kind skill --json | grep -q "open-browser-use"
 bin/ardctl search pet --registry-url "${registry_url}" --kind openapi --json | grep -q "Swagger Petstore - OpenAPI 3.0"
 bin/ardctl search hello --registry-url "${registry_url}" --kind a2a --json | grep -q "Hello World Agent"
+
+bin/ardctl admin add skill "${skill_url}" \
+  --publisher pending.example.com \
+  --registry-url "${registry_url}" \
+  --admin-token "${admin_token}" | grep -q "remote imported"
+bin/ardctl admin list --status pending --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-policy-pending.json
+grep -q "urn:air:pending.example.com:skill:open-browser-use" /tmp/ard-e2e-policy-pending.json
+if bin/ardctl search pending.example --registry-url "${registry_url}" --kind skill --json | grep -q "pending.example.com"; then
+  echo "policy pending entry is publicly searchable" >&2
+  exit 1
+fi
+if bin/ardctl admin add skill "${skill_url}" \
+  --publisher blocked.example.com \
+  --registry-url "${registry_url}" \
+  --admin-token "${admin_token}" >/tmp/ard-e2e-policy-deny.log 2>&1; then
+  echo "policy denied publisher unexpectedly imported" >&2
+  exit 1
+fi
+grep -q "POLICY_DENIED" /tmp/ard-e2e-policy-deny.log
 
 bin/ardctl admin status urn:air:github.com:skill:open-browser-use disabled \
   --registry-url "${registry_url}" \

@@ -7,6 +7,7 @@ import (
 type rootOptions struct {
 	databaseURL string
 	adminToken  string
+	policyFile  string
 }
 
 func NewRootCommand() *cobra.Command {
@@ -29,6 +30,7 @@ func NewServerCommand() *cobra.Command {
 	}
 	addDatabaseFlag(command, &options)
 	addAdminTokenFlag(command, &options)
+	addPolicyFlag(command, &options)
 	command.Flags().StringVar(&addr, "addr", ":8080", "HTTP listen address")
 	return command
 }
@@ -40,6 +42,7 @@ func newRootCommand(use string, includeServer bool) *cobra.Command {
 		Short: "Self-hosted Agentic Resource Discovery registry and toolkit",
 	}
 	addDatabaseFlag(command, &options)
+	addPolicyFlag(command, &options)
 
 	if includeServer {
 		command.AddCommand(newServeCommand(&options))
@@ -70,5 +73,14 @@ func addAdminTokenFlag(command *cobra.Command, options *rootOptions) {
 		"admin-token",
 		"",
 		"Bearer token for protected admin API routes. Defaults to ARD_ADMIN_TOKEN.",
+	)
+}
+
+func addPolicyFlag(command *cobra.Command, options *rootOptions) {
+	command.PersistentFlags().StringVar(
+		&options.policyFile,
+		"policy-file",
+		"",
+		"Optional ingestion policy JSON file. Defaults to ARD_POLICY_FILE.",
 	)
 }

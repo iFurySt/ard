@@ -46,7 +46,11 @@ func newAddCatalogCommand(root *rootOptions) *cobra.Command {
 			if err := registryStore.AutoMigrate(); err != nil {
 				return err
 			}
-			if err := registryStore.UpsertCatalog(ctx, loadedCatalog, source); err != nil {
+			statuses, err := evaluatePolicy(root, loadedCatalog)
+			if err != nil {
+				return err
+			}
+			if err := registryStore.UpsertCatalogWithStatuses(ctx, loadedCatalog, source, statuses); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), store.FormatCatalogImport(len(loadedCatalog.Entries), source))
@@ -80,7 +84,12 @@ func newAddArtifactCommand(root *rootOptions, kind string, short string, load ar
 			if err := registryStore.AutoMigrate(); err != nil {
 				return err
 			}
-			if err := registryStore.UpsertCatalog(ctx, adapters.CatalogFromEntry(entry), source); err != nil {
+			entryCatalog := adapters.CatalogFromEntry(entry)
+			statuses, err := evaluatePolicy(root, entryCatalog)
+			if err != nil {
+				return err
+			}
+			if err := registryStore.UpsertCatalogWithStatuses(ctx, entryCatalog, source, statuses); err != nil {
 				return err
 			}
 			fmt.Fprintln(cmd.OutOrStdout(), adapters.FormatArtifactImport(entry, source))
