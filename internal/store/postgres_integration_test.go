@@ -39,12 +39,17 @@ func TestPostgresImportAndSearch(t *testing.T) {
 		SpecVersion: "1.0",
 		Entries: []ard.CatalogEntry{
 			{
-				Identifier:            "urn:air:acme.com:server:weather",
-				DisplayName:           "Weather Data Node",
-				Type:                  ard.TypeMCPServerCard,
-				URL:                   "https://api.acme.com/mcp/weather.json",
-				Description:           "Enterprise weather MCP server for live telemetry.",
-				Capabilities:          []string{"WeatherTool", "ForecastTool"},
+				Identifier:   "urn:air:acme.com:server:weather",
+				DisplayName:  "Weather Data Node",
+				Type:         ard.TypeMCPServerCard,
+				URL:          "https://api.acme.com/mcp/weather.json",
+				Description:  "Enterprise weather MCP server for live telemetry.",
+				Tags:         []string{"weather", "internal"},
+				Capabilities: []string{"WeatherTool", "ForecastTool"},
+				Metadata: map[string]any{
+					"adapter": "mcp",
+					"tier":    "gold",
+				},
 				RepresentativeQueries: []string{"what is the current wind speed in Chicago", "get the 5-day forecast for Seattle"},
 			},
 			{
@@ -209,6 +214,24 @@ func TestPostgresImportAndSearch(t *testing.T) {
 		if entry.Type != ard.TypeMCPServerCard {
 			t.Fatalf("expected MCP entry after type filter, got %s", entry.Type)
 		}
+	}
+
+	filteredListed, _, err := registryStore.ListEntries(ctx, ListOptions{
+		Limit: 10,
+		Filter: ListFilter{
+			Tags:         []string{"weather"},
+			Capabilities: []string{"ForecastTool"},
+			Metadata: map[string][]string{
+				"adapter": {"mcp"},
+				"tier":    {"gold"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("list entries with tag/capability/metadata filters: %v", err)
+	}
+	if len(filteredListed) != 1 || filteredListed[0].Identifier != "urn:air:acme.com:server:weather" {
+		t.Fatalf("expected filtered weather entry, got %#v", filteredListed)
 	}
 
 	governedCatalog := ard.Catalog{

@@ -107,6 +107,9 @@ type ListFilter struct {
 	DisplayName  []string
 	Types        []string
 	PublisherIDs []string
+	Tags         []string
+	Capabilities []string
+	Metadata     map[string][]string
 	CreatedAfter *time.Time
 	UpdatedAfter *time.Time
 }
@@ -356,6 +359,17 @@ func applyListFilter(query *gorm.DB, filter ListFilter) *gorm.DB {
 	}
 	if len(filter.PublisherIDs) > 0 {
 		query = query.Where(orPublisherClause(len(filter.PublisherIDs)), publisherLikeValues(filter.PublisherIDs)...)
+	}
+	if len(filter.Tags) > 0 {
+		query = query.Where("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(tags, '[]'::jsonb)) AS tag(value) WHERE tag.value IN ?)", filter.Tags)
+	}
+	if len(filter.Capabilities) > 0 {
+		query = query.Where("EXISTS (SELECT 1 FROM jsonb_array_elements_text(COALESCE(capabilities, '[]'::jsonb)) AS capability(value) WHERE capability.value IN ?)", filter.Capabilities)
+	}
+	for key, values := range filter.Metadata {
+		if len(values) > 0 {
+			query = query.Where("metadata ->> ? IN ?", key, values)
+		}
 	}
 	if filter.CreatedAfter != nil {
 		query = query.Where("created_at > ?", *filter.CreatedAfter)

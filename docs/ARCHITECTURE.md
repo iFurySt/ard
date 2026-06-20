@@ -205,8 +205,9 @@ boundary without changing HTTP contracts.
   query, and facet known-field validation.
 - `GET /agents`: optional deterministic browse endpoint with validated `pageSize` and
   `pageToken`, EBNF-like `filter` support for `displayName`, `type`, `publisherId`,
-  `createdAfter`, and `updatedAfter`, plus whitelisted `orderBy` for display name, type,
-  publisher, creation time, and update time.
+  `tags`, `capabilities`, `metadata.<key>`, `createdAfter`, and `updatedAfter`, plus
+  whitelisted `orderBy` for display name, type, publisher, creation time, and update
+  time.
 - `GET /health`: deployment health. Implemented.
 - `GET /metrics`: Prometheus-style operational metrics. Implemented.
 - `/admin/*`: implementation-specific management routes; disabled unless an admin token

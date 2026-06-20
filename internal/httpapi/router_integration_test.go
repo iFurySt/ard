@@ -345,11 +345,17 @@ func TestRouterAgentsAndExploreWithPostgres(t *testing.T) {
 				RepresentativeQueries: []string{"book a flight", "plan a trip"},
 			},
 			{
-				Identifier:            "urn:air:example.com:server:weather-facet",
-				DisplayName:           "Weather Facet MCP",
-				Type:                  ard.TypeMCPServerCard,
-				URL:                   "https://example.com/mcp/weather-facet.json",
-				Description:           "Weather forecast MCP server.",
+				Identifier:   "urn:air:example.com:server:weather-facet",
+				DisplayName:  "Weather Facet MCP",
+				Type:         ard.TypeMCPServerCard,
+				URL:          "https://example.com/mcp/weather-facet.json",
+				Description:  "Weather forecast MCP server.",
+				Tags:         []string{"weather", "forecast"},
+				Capabilities: []string{"WeatherFacetTool"},
+				Metadata: map[string]any{
+					"adapter": "mcp",
+					"domain":  "weather",
+				},
 				RepresentativeQueries: []string{"what is the weather", "get a forecast"},
 			},
 		},
@@ -435,6 +441,20 @@ func TestRouterAgentsAndExploreWithPostgres(t *testing.T) {
 	}
 	if len(filteredList.Items) != 1 || filteredList.Items[0].DisplayName != "Weather Facet MCP" {
 		t.Fatalf("expected filtered list to return Weather Facet MCP, got %#v", filteredList.Items)
+	}
+
+	fieldFilteredListRequest := httptest.NewRequest(http.MethodGet, "/agents?filter="+url.QueryEscape("tags = 'weather' AND capabilities = 'WeatherFacetTool' AND metadata.adapter = 'mcp' AND metadata.domain = 'weather'"), nil)
+	fieldFilteredListResponse := httptest.NewRecorder()
+	router.ServeHTTP(fieldFilteredListResponse, fieldFilteredListRequest)
+	if fieldFilteredListResponse.Code != http.StatusOK {
+		t.Fatalf("expected field-filtered /agents HTTP 200, got %d: %s", fieldFilteredListResponse.Code, fieldFilteredListResponse.Body.String())
+	}
+	var fieldFilteredList ard.ListResponse
+	if err := json.Unmarshal(fieldFilteredListResponse.Body.Bytes(), &fieldFilteredList); err != nil {
+		t.Fatalf("decode field-filtered list response: %v", err)
+	}
+	if len(fieldFilteredList.Items) != 1 || fieldFilteredList.Items[0].Identifier != "urn:air:example.com:server:weather-facet" {
+		t.Fatalf("expected field-filtered list to return Weather Facet MCP, got %#v", fieldFilteredList.Items)
 	}
 
 	publisherOrderedListRequest := httptest.NewRequest(http.MethodGet, "/agents?filter="+url.QueryEscape("publisherId = 'example.com'")+"&orderBy="+url.QueryEscape("displayName DESC"), nil)

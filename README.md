@@ -34,6 +34,7 @@ ard add openapi https://example.com/openapi.json
 ard crawl
 ardctl list --kind mcp
 ardctl list --filter "publisherId = 'github.com'" --order-by "displayName DESC"
+ardctl list --filter "tags = 'skill' AND metadata.adapter = 'skill'"
 ardctl browse --registry-url https://registry.example.com --filter "publisherId = 'github.com'" --json
 ardctl remove urn:air:example.com:server:weather --yes
 ardctl export catalog -o ai-catalog.json
@@ -68,6 +69,7 @@ bin/ard --database-url "$DATABASE_URL" add a2a ./internal/adapters/testdata/a2a-
 bin/ard --database-url "$DATABASE_URL" add skill ./internal/adapters/testdata/open-browser-use/SKILL.md
 bin/ardctl --database-url "$DATABASE_URL" list --kind mcp
 bin/ardctl --database-url "$DATABASE_URL" list --filter "type = 'application/mcp-server-card+json'" --order-by "displayName DESC"
+bin/ardctl --database-url "$DATABASE_URL" list --filter "capabilities = 'ForecastTool'"
 bin/ard verify catalog ./internal/catalog/testdata/acme-ai-catalog.json
 bin/ard --database-url "$DATABASE_URL" crawl https://example.com/
 bin/ardctl --database-url "$DATABASE_URL" export catalog -o ai-catalog.json
@@ -101,7 +103,7 @@ Import paths:
 This repository is in early implementation. Current milestones include a Go CLI,
 Gin-based registry server, GORM/Postgres persistence, catalog import, well-known
 catalog crawl, MCP/A2A/Skill/OpenAPI artifact onboarding, catalog verification, ARD
-search, browse, and explore facets, a public Go SDK, catalog export, filtered local
+search, browse, and explore facets, a public Go SDK, catalog export, field-filtered local
 listing, remote public browsing, entry removal, and token-protected admin
 API routes with an `ardctl admin` client. Admin flows can disable, reactivate, filter
 entries, apply ingestion policy, review pending entries with decision reasons, and

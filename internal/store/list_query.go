@@ -41,6 +41,16 @@ func ParseListFilterExpression(expression string) (ListFilter, error) {
 				return ListFilter{}, fmt.Errorf("filter field %q only supports =", field)
 			}
 			filter.PublisherIDs = append(filter.PublisherIDs, values...)
+		case "tags":
+			if operator != "=" {
+				return ListFilter{}, fmt.Errorf("filter field %q only supports =", field)
+			}
+			filter.Tags = append(filter.Tags, values...)
+		case "capabilities":
+			if operator != "=" {
+				return ListFilter{}, fmt.Errorf("filter field %q only supports =", field)
+			}
+			filter.Capabilities = append(filter.Capabilities, values...)
 		case "createdAfter":
 			if operator != ">" {
 				return ListFilter{}, fmt.Errorf("filter field %q only supports >", field)
@@ -60,6 +70,20 @@ func ParseListFilterExpression(expression string) (ListFilter, error) {
 			}
 			filter.UpdatedAfter = &timestamp
 		default:
+			if strings.HasPrefix(field, "metadata.") {
+				if operator != "=" {
+					return ListFilter{}, fmt.Errorf("filter field %q only supports =", field)
+				}
+				key, err := listMetadataKey(field)
+				if err != nil {
+					return ListFilter{}, err
+				}
+				if filter.Metadata == nil {
+					filter.Metadata = map[string][]string{}
+				}
+				filter.Metadata[key] = append(filter.Metadata[key], values...)
+				continue
+			}
 			return ListFilter{}, fmt.Errorf("unsupported filter field %q", field)
 		}
 	}
@@ -212,6 +236,31 @@ func singleListFilterTime(field string, values []string) (time.Time, error) {
 		}
 	}
 	return time.Time{}, fmt.Errorf("filter field %q requires an ISO 8601 timestamp", field)
+}
+
+func listMetadataKey(field string) (string, error) {
+	key := strings.TrimPrefix(field, "metadata.")
+	if key == "" {
+		return "", errors.New("metadata filter key must not be empty")
+	}
+	for _, char := range key {
+		if char >= 'a' && char <= 'z' {
+			continue
+		}
+		if char >= 'A' && char <= 'Z' {
+			continue
+		}
+		if char >= '0' && char <= '9' {
+			continue
+		}
+		switch char {
+		case '_', '-', '.':
+			continue
+		default:
+			return "", fmt.Errorf("metadata filter key %q contains unsupported character %q", key, char)
+		}
+	}
+	return key, nil
 }
 
 func normalizeListOrderField(field string) (string, error) {

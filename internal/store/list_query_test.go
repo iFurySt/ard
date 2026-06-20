@@ -8,7 +8,7 @@ import (
 )
 
 func TestParseListFilterExpression(t *testing.T) {
-	filter, err := ParseListFilterExpression("type = 'application/mcp-server-card+json', 'application/a2a-agent-card+json' AND displayName = 'Weather' AND publisherId = 'example.com' AND createdAfter > '2026-01-01'")
+	filter, err := ParseListFilterExpression("type = 'application/mcp-server-card+json', 'application/a2a-agent-card+json' AND displayName = 'Weather' AND publisherId = 'example.com' AND tags = 'weather' AND capabilities = 'ForecastTool' AND metadata.adapter = 'mcp' AND createdAfter > '2026-01-01'")
 	if err != nil {
 		t.Fatalf("parse list filter: %v", err)
 	}
@@ -20,6 +20,15 @@ func TestParseListFilterExpression(t *testing.T) {
 	}
 	if len(filter.PublisherIDs) != 1 || filter.PublisherIDs[0] != "example.com" {
 		t.Fatalf("unexpected publisher filters: %#v", filter.PublisherIDs)
+	}
+	if len(filter.Tags) != 1 || filter.Tags[0] != "weather" {
+		t.Fatalf("unexpected tag filters: %#v", filter.Tags)
+	}
+	if len(filter.Capabilities) != 1 || filter.Capabilities[0] != "ForecastTool" {
+		t.Fatalf("unexpected capability filters: %#v", filter.Capabilities)
+	}
+	if got := filter.Metadata["adapter"]; len(got) != 1 || got[0] != "mcp" {
+		t.Fatalf("unexpected metadata filters: %#v", filter.Metadata)
 	}
 	if filter.CreatedAfter == nil {
 		t.Fatal("expected createdAfter filter to parse")
@@ -41,6 +50,14 @@ func TestParseListFilterExpressionRejectsUnsupportedFields(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), `filter field "updatedAfter" only supports >`) {
 		t.Fatalf("unexpected timestamp operator error: %v", err)
+	}
+
+	_, err = ParseListFilterExpression("metadata. = 'skill'")
+	if err == nil {
+		t.Fatal("expected empty metadata key to be rejected")
+	}
+	if !strings.Contains(err.Error(), "metadata filter key must not be empty") {
+		t.Fatalf("unexpected metadata key error: %v", err)
 	}
 }
 

@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | API | Clients can browse registries by capability, tag, and metadata fields instead of only publisher and type. | Extended shared `/agents`, `ardctl browse`, and `ardctl list` filters with `tags`, `capabilities`, and `metadata.<key>` support backed by Postgres, integration tests, and real E2E coverage. |
 | 2026-06-21 | SDK | Agent platforms can embed ARD discovery without shelling out to `ardctl`. | Added public `pkg/ard` model aliases, `pkg/client` for search/browse/explore/catalog/health, unit tests, external import verification, and a CI gate. |
 | 2026-06-21 | CLI | Clients can browse public registries without admin credentials. | Added `ardctl browse` for public `/agents` with filter, order, pagination, JSON output, unit tests, and E2E coverage. |
 | 2026-06-21 | CLI | Operators can use the same deterministic browse filters from local `ardctl list` inventory workflows. | Moved list filter/order parsing into the store layer and added `ardctl list --filter` / `--order-by` with E2E coverage. |

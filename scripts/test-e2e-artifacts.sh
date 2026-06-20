@@ -274,6 +274,10 @@ bin/ardctl --database-url "${database_url}" list \
   --order-by "displayName DESC" \
   --json >/tmp/ard-e2e-local-list-filtered.json
 grep -q "open-browser-use" /tmp/ard-e2e-local-list-filtered.json
+bin/ardctl --database-url "${database_url}" list \
+  --filter "tags = 'skill' AND capabilities = 'open-browser-use' AND metadata.adapter = 'skill'" \
+  --json >/tmp/ard-e2e-local-list-skill-fields.json
+grep -q "open-browser-use" /tmp/ard-e2e-local-list-skill-fields.json
 if bin/ardctl --database-url "${database_url}" list --filter "score = '100'" >/tmp/ard-e2e-local-list-invalid-filter.log 2>&1; then
   echo "local list unexpectedly accepted unsupported filter" >&2
   exit 1
@@ -286,6 +290,11 @@ bin/ardctl browse \
   --order-by "displayName DESC" \
   --json >/tmp/ard-e2e-public-browse-filtered.json
 grep -q "open-browser-use" /tmp/ard-e2e-public-browse-filtered.json
+bin/ardctl browse \
+  --registry-url "${registry_url}" \
+  --filter "tags = 'skill' AND capabilities = 'open-browser-use' AND metadata.adapter = 'skill'" \
+  --json >/tmp/ard-e2e-public-browse-skill-fields.json
+grep -q "open-browser-use" /tmp/ard-e2e-public-browse-skill-fields.json
 bin/ardctl browse --registry-url "${registry_url}" --limit 1 --json >/tmp/ard-e2e-public-browse-page1.json
 browse_page_token="$(python3 -c 'import json; print(json.load(open("/tmp/ard-e2e-public-browse-page1.json")).get("pageToken", ""))')"
 if [ -z "${browse_page_token}" ]; then
