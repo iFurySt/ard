@@ -44,6 +44,9 @@ jobs:
       - name: Test
         run: make test
 
+      - name: Public Go client import test
+        run: make test-public-go-client
+
       - name: Build
         run: make build
 

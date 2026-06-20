@@ -1,7 +1,7 @@
 PROJECT ?=
 SLUG ?=
 
-.PHONY: init new-history new-plan fmt fmt-check test test-integration test-e2e test-compose build docker-build
+.PHONY: init new-history new-plan fmt fmt-check test test-public-go-client test-integration test-e2e test-compose build docker-build
 
 init:
 	@if [ -z "$(PROJECT)" ]; then echo "usage: make init PROJECT=my-project"; exit 1; fi
@@ -23,6 +23,9 @@ fmt-check:
 
 test:
 	go test ./...
+
+test-public-go-client:
+	./scripts/test-public-go-client.sh
 
 test-integration:
 	./scripts/test-integration.sh

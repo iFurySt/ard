@@ -12,7 +12,7 @@ found.
 ## What It Will Provide
 
 - A self-hosted ARD registry server.
-- A standards-aligned ARD client and CLI.
+- A standards-aligned ARD Go client and CLI.
 - Catalog crawling for `/.well-known/ai-catalog.json`.
 - Resource onboarding for MCP, A2A, Skills, OpenAPI, and URL artifacts.
 - Validation, verification, policy, and federation workflows.
@@ -59,6 +59,7 @@ make build
 make test-integration
 make test-e2e
 make test-compose
+make test-public-go-client
 make fmt-check
 
 bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/acme-ai-catalog.json
@@ -80,13 +81,28 @@ bin/ardctl search "weather forecast" --kind mcp --json
 bin/ardctl admin list --admin-token "$ARD_ADMIN_TOKEN"
 ```
 
+## Go SDK
+
+```go
+registry, _ := client.New("https://registry.example.com")
+results, _ := registry.Search(ctx, ard.SearchRequest{
+	Query: ard.SearchQuery{Text: "weather"},
+})
+_ = results
+```
+
+Import paths:
+
+- `github.com/ifuryst/ard/pkg/ard`
+- `github.com/ifuryst/ard/pkg/client`
+
 ## Status
 
 This repository is in early implementation. Current milestones include a Go CLI,
 Gin-based registry server, GORM/Postgres persistence, catalog import, well-known
 catalog crawl, MCP/A2A/Skill/OpenAPI artifact onboarding, catalog verification, ARD
-search, browse, and explore facets, catalog export, filtered local listing, remote
-public browsing, entry removal, and token-protected admin
+search, browse, and explore facets, a public Go SDK, catalog export, filtered local
+listing, remote public browsing, entry removal, and token-protected admin
 API routes with an `ardctl admin` client. Admin flows can disable, reactivate, filter
 entries, apply ingestion policy, review pending entries with decision reasons, and
 inspect mutation audit events without exposing inactive resources through public
@@ -103,7 +119,7 @@ histograms and Go runtime gauges. `ardctl admin --request-id` can carry one corr
 ID across remote artifact fetches and admin API calls.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. CI runs formatting checks, tests,
-builds, and Postgres integration tests.
+public Go client import checks, builds, and Postgres integration tests.
 `make test-e2e` runs the real artifact onboarding flow with live MCP, Skill, OpenAPI,
 policy-gate examples, and a local upstream registry for auto federation.
 `make test-compose` builds the container image and verifies a compose-backed registry

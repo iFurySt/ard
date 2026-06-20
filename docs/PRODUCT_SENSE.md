@@ -80,7 +80,8 @@ The first release should prove the core loop:
 
 ## Success Signals
 
-- Agent framework authors can use the client without platform-specific assumptions.
+- Agent framework authors can use the CLI or Go client without platform-specific
+  assumptions.
 - Internal platform teams can deploy the registry in less than 10 minutes.
 - Existing MCP servers, Skills, A2A agents, and OpenAPI specs can be published without
   rewriting them.

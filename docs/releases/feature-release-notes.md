@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | SDK | Agent platforms can embed ARD discovery without shelling out to `ardctl`. | Added public `pkg/ard` model aliases, `pkg/client` for search/browse/explore/catalog/health, unit tests, external import verification, and a CI gate. |
 | 2026-06-21 | CLI | Clients can browse public registries without admin credentials. | Added `ardctl browse` for public `/agents` with filter, order, pagination, JSON output, unit tests, and E2E coverage. |
 | 2026-06-21 | CLI | Operators can use the same deterministic browse filters from local `ardctl list` inventory workflows. | Moved list filter/order parsing into the store layer and added `ardctl list --filter` / `--order-by` with E2E coverage. |
 | 2026-06-21 | API | Developer portals can now browse with deterministic filters and ordering instead of fetching the whole active registry. | Added `/agents` filter parsing for common spec fields and whitelisted `orderBy` support backed by Postgres queries. |

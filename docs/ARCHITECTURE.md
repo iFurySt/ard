@@ -13,12 +13,15 @@ Cobra, Gin, GORM, and Postgres.
 - Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
   management operations without server startup, and `cmd/ard-server` ships a dedicated
   registry server binary.
+- Public Go SDK: `pkg/ard` exposes spec-shaped ARD model aliases and validation helpers,
+  while `pkg/client` provides an embeddable HTTP client for public registry surfaces.
 - Container distribution: the root `Dockerfile` builds all three binaries and defaults
   to the dedicated `ard-server` runtime entrypoint. `infra/compose.yaml` runs the
   registry with Postgres for local self-hosted trials.
-- Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
-  The registry rejects unknown request/query fields, missing `query.text`, and unsupported
-  `federation` values instead of silently normalizing invalid request modes.
+- Client flow: `ard search` and the public Go client send spec-shaped `SearchRequest`
+  bodies to a registry. The registry rejects unknown request/query fields, missing
+  `query.text`, and unsupported `federation` values instead of silently normalizing
+  invalid request modes.
 - Explore flow: `POST /explore` accepts spec-shaped `ExploreRequest` bodies for local
   facet aggregation. The registry rejects unknown request/query/facet fields and invalid
   facet requests instead of silently ignoring malformed introspection options.
@@ -101,15 +104,17 @@ Cobra, Gin, GORM, and Postgres.
 - `internal/catalog/`: local and HTTP catalog loading.
 - `internal/store/`: GORM/Postgres persistence and search.
 - `internal/config/`: environment and CLI config helpers.
-- `packages/`: reserved for future public SDK packages once the internal API stabilizes.
+- `pkg/ard/`: public ARD model aliases and validation helpers for Go consumers.
+- `pkg/client/`: public HTTP client for unauthenticated registry discovery surfaces.
+- `packages/`: reserved for future non-Go SDK packages or generated artifacts.
 - `apps/registry/`: reserved for a separate deployable server only if the single binary
   becomes limiting.
 - `infra/`: Docker Compose, deployment, and environment definitions.
 - `scripts/`: repository automation that agents can run directly.
 - `docs/`: repository knowledge base and system of record.
 
-Keep the internal boundaries visible. Only promote packages out of `internal/` when there
-is a stable public SDK contract.
+Keep the internal boundaries visible. Public packages under `pkg/` should remain small,
+spec-shaped, and stable enough for external import.
 
 ## Runtime Topology
 
@@ -207,6 +212,9 @@ boundary without changing HTTP contracts.
 - `/admin/*`: implementation-specific management routes; disabled unless an admin token
   is configured. Implemented, including entry lifecycle status management and paginated
   audit event listing plus audit hash-chain verification.
+- Go SDK equivalents: `pkg/client` implements public `Search`, `Browse`, `Explore`,
+  `Catalog`, and `Health` methods with typed responses from `pkg/ard`. Admin APIs are
+  intentionally not exposed as a public SDK contract yet.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`,
   `add openapi`, `crawl`, `admin`, `browse`, `export catalog`, `list`, `remove`,
   `verify catalog`, and `search` are implemented. `ardctl browse` calls public
