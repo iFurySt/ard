@@ -50,6 +50,10 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
   `metadata` value validation.
 - Implemented: `trustManifest.identityType` type and enum validation against the ARD
   schema values: `spiffe`, `did`, `https`, and `other`.
+- Implemented: `trustManifest.trustSchema` structure validation for required
+  `identifier` and `version`, optional absolute `governanceUri`, and string
+  `verificationMethods`.
+- Implemented: `trustManifest.signature` type validation.
 - Implemented: URL `trustManifest.identity` host must match the `urn:air:` publisher
   domain.
 - Implemented: `trustManifest.attestations` structure validation for required fields,

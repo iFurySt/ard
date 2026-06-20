@@ -299,6 +299,11 @@ func validateTrustManifest(identifier string, trustManifest map[string]any) erro
 			return errors.New("trustManifest.identityType must be one of spiffe, did, https, other")
 		}
 	}
+	if trustSchema, ok := trustManifest["trustSchema"]; ok {
+		if err := validateTrustSchema(trustSchema); err != nil {
+			return err
+		}
+	}
 	if sourceDigest, ok := trustManifest["sourceDigest"]; ok {
 		sourceDigestString, ok := sourceDigest.(string)
 		if !ok {
@@ -315,6 +320,38 @@ func validateTrustManifest(identifier string, trustManifest map[string]any) erro
 	}
 	if provenance, ok := trustManifest["provenance"]; ok {
 		if err := validateTrustProvenance(provenance); err != nil {
+			return err
+		}
+	}
+	if signature, ok := trustManifest["signature"]; ok {
+		if _, ok := signature.(string); !ok {
+			return errors.New("trustManifest.signature must be a string")
+		}
+	}
+	return nil
+}
+
+func validateTrustSchema(value any) error {
+	schema, ok := value.(map[string]any)
+	if !ok {
+		return errors.New("trustManifest.trustSchema must be an object")
+	}
+	path := "trustManifest.trustSchema"
+	if _, err := requiredTrustString(schema, "identifier", path); err != nil {
+		return err
+	}
+	if _, err := requiredTrustString(schema, "version", path); err != nil {
+		return err
+	}
+	if governanceURI, ok, err := optionalTrustString(schema, "governanceUri", path); err != nil {
+		return err
+	} else if ok && governanceURI != "" {
+		if err := validateAbsoluteURI(governanceURI); err != nil {
+			return fmt.Errorf("%s.governanceUri is invalid: %w", path, err)
+		}
+	}
+	if methods, ok := schema["verificationMethods"]; ok {
+		if err := validateTrustStringList(methods, path+".verificationMethods"); err != nil {
 			return err
 		}
 	}
@@ -390,6 +427,22 @@ func trustObjectList(value any, path string) ([]map[string]any, error) {
 		return items, nil
 	default:
 		return nil, fmt.Errorf("%s must be an array", path)
+	}
+}
+
+func validateTrustStringList(value any, path string) error {
+	switch items := value.(type) {
+	case []any:
+		for index, item := range items {
+			if _, ok := item.(string); !ok {
+				return fmt.Errorf("%s[%d] must be a string", path, index)
+			}
+		}
+		return nil
+	case []string:
+		return nil
+	default:
+		return fmt.Errorf("%s must be an array", path)
 	}
 }
 

@@ -45,6 +45,8 @@ Use this document to make secure defaults explicit and legible to agents.
   `metadata` values must be strings, numbers, booleans, or null.
 - `trustManifest.identityType`, when present, must be one of the ARD schema values:
   `spiffe`, `did`, `https`, or `other`.
+- `trustManifest.trustSchema` and `trustManifest.signature`, when present, are validated
+  for schema shape and value types.
 - `trustManifest.attestations` and `trustManifest.provenance`, when present, are
   validated for required fields, enum values, absolute attestation URIs, and digest
   formats.
@@ -53,8 +55,8 @@ Use this document to make secure defaults explicit and legible to agents.
 - `ard verify catalog --source-digests` fetches URL artifacts and verifies pinned
   `sha256` source digests.
 - Source digest verification proves byte integrity for the fetched URL only. It does not
-  prove publisher identity, attestation truth, signature validity, runtime safety, or
-  compliance status.
+  prove publisher identity, trust schema authority, attestation truth, signature
+  validity, runtime safety, or compliance status.
 - Detailed trust behavior is in `docs/TRUST.md`.
 
 ## Audit Events

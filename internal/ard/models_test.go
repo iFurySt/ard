@@ -258,6 +258,52 @@ func TestValidateCatalogEntryTrustManifestSourceDigestType(t *testing.T) {
 	}
 }
 
+func TestValidateCatalogEntryTrustManifestTrustSchema(t *testing.T) {
+	entry := CatalogEntry{
+		Identifier:  "urn:air:acme.com:server:weather",
+		DisplayName: "Weather Data Node",
+		Type:        TypeMCPServerCard,
+		URL:         "https://api.acme.com/mcp/weather.json",
+		TrustManifest: map[string]any{
+			"identity": "https://acme.com/security",
+			"trustSchema": map[string]any{
+				"identifier":          "urn:air:acme.com:trust:soc2",
+				"version":             "1.0",
+				"governanceUri":       "https://acme.com/security/governance",
+				"verificationMethods": []any{"did", "x509"},
+			},
+			"signature": "detached-jws-placeholder",
+		},
+	}
+	if err := ValidateCatalogEntry(entry); err != nil {
+		t.Fatalf("expected valid trustSchema: %v", err)
+	}
+
+	schema := entry.TrustManifest["trustSchema"].(map[string]any)
+	delete(schema, "version")
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected trustSchema without version to be rejected")
+	}
+
+	schema["version"] = "1.0"
+	schema["governanceUri"] = "/security/governance"
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected relative governanceUri to be rejected")
+	}
+
+	schema["governanceUri"] = "https://acme.com/security/governance"
+	schema["verificationMethods"] = []any{"did", 42}
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected non-string verification method to be rejected")
+	}
+
+	schema["verificationMethods"] = []any{"did", "x509"}
+	entry.TrustManifest["signature"] = 42
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected non-string signature to be rejected")
+	}
+}
+
 func TestValidateCatalogEntryTrustManifestAttestations(t *testing.T) {
 	validDigest := "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	entry := CatalogEntry{
