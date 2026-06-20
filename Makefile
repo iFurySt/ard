@@ -1,7 +1,7 @@
 PROJECT ?=
 SLUG ?=
 
-.PHONY: init new-history new-plan fmt fmt-check test test-integration test-e2e build
+.PHONY: init new-history new-plan fmt fmt-check test test-integration test-e2e test-compose build docker-build
 
 init:
 	@if [ -z "$(PROJECT)" ]; then echo "usage: make init PROJECT=my-project"; exit 1; fi
@@ -30,7 +30,13 @@ test-integration:
 test-e2e:
 	./scripts/test-e2e-artifacts.sh
 
+test-compose: build
+	./scripts/test-compose.sh
+
 build:
 	go build -o bin/ard ./cmd/ard
 	go build -o bin/ardctl ./cmd/ardctl
 	go build -o bin/ard-server ./cmd/ard-server
+
+docker-build:
+	docker build -t ard:local .

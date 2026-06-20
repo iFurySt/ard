@@ -1,0 +1,41 @@
+name: ard
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ard
+      POSTGRES_PASSWORD: ard
+      POSTGRES_DB: ard
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ard -d ard"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  registry:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    image: ${ARD_IMAGE:-ard:local}
+    environment:
+      DATABASE_URL: postgres://ard:ard@postgres:5432/ard?sslmode=disable
+      ARD_ADMIN_TOKEN: ${ARD_ADMIN_TOKEN:-dev-admin-token}
+      ARD_ADMIN_TOKENS_FILE: ${ARD_ADMIN_TOKENS_FILE:-}
+      ARD_POLICY_FILE: ${ARD_POLICY_FILE:-}
+    command: ["--addr", ":8080"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${ARD_REGISTRY_PORT:-18080}:8080"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  postgres-data:

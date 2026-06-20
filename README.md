@@ -53,6 +53,7 @@ ard verify catalog ./ai-catalog.json --source-digests
 make build
 make test-integration
 make test-e2e
+make test-compose
 make fmt-check
 
 bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/acme-ai-catalog.json
@@ -90,6 +91,8 @@ operations, and `ard-server` for the registry server. CI runs formatting checks,
 builds, and Postgres integration tests.
 `make test-e2e` runs the real artifact onboarding flow with live MCP, Skill, OpenAPI,
 policy-gate examples, and a local upstream registry for auto federation.
+`make test-compose` builds the container image and verifies a compose-backed registry
+against Postgres.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including
@@ -100,6 +103,7 @@ See:
 
 - [Architecture](docs/ARCHITECTURE.md)
 - [Admin Authorization](docs/ADMIN_AUTH.md)
+- [Deployment](docs/DEPLOYMENT.md)
 - [Product Sense](docs/PRODUCT_SENSE.md)
 - [Policy](docs/POLICY.md)
 - [Trust Verification](docs/TRUST.md)

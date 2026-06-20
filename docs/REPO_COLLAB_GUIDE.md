@@ -40,7 +40,10 @@ This document defines the default collaboration model for an agent-first reposit
 - `make test-e2e` runs a heavier local E2E flow with live MCP, Skill, and OpenAPI
   artifacts, policy-gate checks, plus the checked-in A2A fixture. It is intentionally
   outside the default CI path because it depends on external network availability.
-- Release packaging is not automated yet. When release automation is added, document the
+- `make test-compose` builds the registry image and verifies the Docker Compose
+  deployment path against Postgres.
+- Release publishing is not automated yet. The local container and binary artifacts are
+  documented in `docs/DEPLOYMENT.md`; when publishing automation is added, document the
   release artifacts and operational assumptions in the same change.
 
 ## Configuration Hygiene

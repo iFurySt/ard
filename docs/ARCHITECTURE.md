@@ -13,6 +13,9 @@ Cobra, Gin, GORM, and Postgres.
 - Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
   management operations without server startup, and `cmd/ard-server` ships a dedicated
   registry server binary.
+- Container distribution: the root `Dockerfile` builds all three binaries and defaults
+  to the dedicated `ard-server` runtime entrypoint. `infra/compose.yaml` runs the
+  registry with Postgres for local self-hosted trials.
 - Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
 - Federation referrals: `POST /search` supports `federation=referrals` by returning
   active `application/ai-registry+json` entries in `SearchResponse.referrals` for
@@ -73,7 +76,7 @@ Cobra, Gin, GORM, and Postgres.
 - `packages/`: reserved for future public SDK packages once the internal API stabilizes.
 - `apps/registry/`: reserved for a separate deployable server only if the single binary
   becomes limiting.
-- `infra/`: Docker, deployment, and environment definitions.
+- `infra/`: Docker Compose, deployment, and environment definitions.
 - `scripts/`: repository automation that agents can run directly.
 - `docs/`: repository knowledge base and system of record.
 
@@ -196,10 +199,9 @@ third-party or generated directory and record the source commit.
 
 - Ranking strategy for the first release.
 - Trust manifest verification depth for MVP.
-- Release packaging details for the combined `ard`, CLI-only `ardctl`, and server-only
-  `ard-server` binaries.
 - Whether to add an embedded non-Postgres development mode.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.
 - Whether to replace the MVP JSON ingestion policy with a richer policy engine.
+
 When these decisions are made, update this file in the same task as the code.

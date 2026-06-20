@@ -51,3 +51,6 @@ jobs:
         env:
           ARD_TEST_DATABASE_URL: postgres://ard:ard@127.0.0.1:55432/ard_test?sslmode=disable
         run: make test-integration
+
+      - name: Compose deployment test
+        run: make test-compose

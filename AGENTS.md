@@ -22,6 +22,7 @@ If a code or workflow change makes a doc stale, update the doc in the same task.
 
 - `docs/PLANS_GUIDE.md`: when to create an execution plan and how to maintain it.
 - `docs/PRODUCT_SENSE.md`: user value, product constraints, and feature prioritization heuristics.
+- `docs/DEPLOYMENT.md`: binary, container, and Docker Compose deployment behavior.
 - `docs/POLICY.md`: ingestion policy file format and lifecycle behavior.
 - `docs/RELIABILITY.md`: runtime guardrails, observability expectations, and operational readiness.
 - `docs/SECURITY.md`: secure defaults for auth, data handling, secrets, and external integrations.
