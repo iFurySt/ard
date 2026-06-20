@@ -204,6 +204,18 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 		t.Fatalf("expected invalid page token HTTP 400, got %d: %s", invalidPageResponse.Code, invalidPageResponse.Body.String())
 	}
 
+	invalidFederationBody := []byte(`{"query":{"text":"weather"},"federation":"recursive"}`)
+	invalidFederationRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(invalidFederationBody))
+	invalidFederationRequest.Header.Set("Content-Type", "application/json")
+	invalidFederationResponse := httptest.NewRecorder()
+	router.ServeHTTP(invalidFederationResponse, invalidFederationRequest)
+	if invalidFederationResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid federation HTTP 400, got %d: %s", invalidFederationResponse.Code, invalidFederationResponse.Body.String())
+	}
+	if !bytes.Contains(invalidFederationResponse.Body.Bytes(), []byte("federation must be one of")) {
+		t.Fatalf("expected invalid federation message, got %s", invalidFederationResponse.Body.String())
+	}
+
 	federatedBody, _ := json.Marshal(ard.SearchRequest{
 		Query: ard.SearchQuery{
 			Text: "weather",

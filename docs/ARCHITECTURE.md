@@ -17,6 +17,8 @@ Cobra, Gin, GORM, and Postgres.
   to the dedicated `ard-server` runtime entrypoint. `infra/compose.yaml` runs the
   registry with Postgres for local self-hosted trials.
 - Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
+  The registry rejects missing `query.text` and unsupported `federation` values instead
+  of silently normalizing invalid request modes.
 - Pagination: `POST /search`, `GET /agents`, and admin list/review/audit endpoints
   return opaque offset page tokens when additional local results are available.
 - Federation referrals: `POST /search` supports `federation=referrals` by returning
@@ -184,8 +186,8 @@ boundary without changing HTTP contracts.
 
 - `GET /.well-known/ai-catalog.json`: advertise this registry and any configured catalog
   entries. Implemented.
-- `POST /search`: ARD search endpoint with root-level `pageSize` and `pageToken`.
-  Implemented.
+- `POST /search`: ARD search endpoint with root-level `pageSize`, `pageToken`, and
+  `federation` enum validation. Implemented.
 - `POST /explore`: optional; implemented for local facet aggregation.
 - `GET /agents`: optional deterministic browse endpoint with `pageSize` and `pageToken`.
   Implemented for basic listing.

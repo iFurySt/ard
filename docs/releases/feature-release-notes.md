@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | API | Search requests with mistyped federation modes now fail fast instead of silently running as `auto`. | Added shared `SearchRequest` validation for required `query.text` and `federation` enum values, with HTTP integration coverage. |
 | 2026-06-21 | Security | Catalog imports now reject unsupported root and host fields before persistence. | Added schema-aligned JSON decode checks for catalog root and `host` fields, including deprecated root `collections`, while leaving catalog entry extension fields available for future handling. |
 | 2026-06-21 | Security | Catalog imports now reject malformed catalog and attestation media type values before persistence. | Added `type/subtype` syntax validation for catalog entry `type` and trust attestation `mediaType` fields without introducing a fixed media type allowlist. |
 | 2026-06-21 | Security | Catalog imports now reject unsupported trust metadata fields before persistence. | Added schema-aligned known-field validation for `trustManifest`, `trustSchema`, attestation, and provenance objects while preserving the documented `trustManifest.sourceDigest` extension. |

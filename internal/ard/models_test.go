@@ -615,3 +615,18 @@ func TestSearchFilterAcceptsScalarAndArray(t *testing.T) {
 		t.Fatalf("unexpected tags filter: %#v", got)
 	}
 }
+
+func TestValidateSearchRequest(t *testing.T) {
+	if err := ValidateSearchRequest(SearchRequest{Query: SearchQuery{Text: "weather"}}); err != nil {
+		t.Fatalf("expected default federation to validate: %v", err)
+	}
+	if err := ValidateSearchRequest(SearchRequest{Query: SearchQuery{Text: "weather"}, Federation: "none"}); err != nil {
+		t.Fatalf("expected explicit federation mode to validate: %v", err)
+	}
+	if err := ValidateSearchRequest(SearchRequest{Query: SearchQuery{Text: " "}}); err == nil {
+		t.Fatal("expected missing query text to be rejected")
+	}
+	if err := ValidateSearchRequest(SearchRequest{Query: SearchQuery{Text: "weather"}, Federation: "recursive"}); err == nil {
+		t.Fatal("expected unsupported federation mode to be rejected")
+	}
+}

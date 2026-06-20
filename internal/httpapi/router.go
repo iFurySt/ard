@@ -121,10 +121,10 @@ func (server Server) search(context *gin.Context) {
 		})
 		return
 	}
-	if strings.TrimSpace(request.Query.Text) == "" {
+	if err := ard.ValidateSearchRequest(request); err != nil {
 		context.JSON(http.StatusBadRequest, gin.H{
 			"errorCode": "INVALID_ARGUMENT",
-			"message":   "query.text is required",
+			"message":   err.Error(),
 		})
 		return
 	}

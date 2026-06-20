@@ -255,6 +255,18 @@ func (request SearchRequest) NormalizedFederation() string {
 	}
 }
 
+func ValidateSearchRequest(request SearchRequest) error {
+	if strings.TrimSpace(request.Query.Text) == "" {
+		return errors.New("query.text is required")
+	}
+	switch request.Federation {
+	case "", "auto", "referrals", "none":
+		return nil
+	default:
+		return errors.New("federation must be one of auto, referrals, none")
+	}
+}
+
 func ValidateCatalog(catalog Catalog) error {
 	if catalog.SpecVersion != "1.0" {
 		return fmt.Errorf("specVersion must be 1.0")
