@@ -1,74 +1,44 @@
 # ard
 
-Neutral, self-hosted Agentic Resource Discovery registry and toolkit.
+Neutral, self-hosted Agentic Resource Discovery registry and management toolkit.
 
-## Intro
+`ard` is an independent open-source implementation of the ARD ecosystem. It is being
+designed for enterprises and agent platforms that need to discover, verify, govern, and
+manage agentic resources across MCP, A2A, Skills, OpenAPI, and future protocols.
 
-`ard` is an independent open-source implementation of the Agentic Resource Discovery
-ecosystem. It is intended to become the registry distribution that enterprises can fork,
-deploy, and run inside their own environments to discover, verify, and govern agentic
-resources.
-
-It targets the discovery layer that sits in front of MCP servers, Skills, A2A agents,
-OpenAPI tools, and future agentic artifacts. The goal is not to create another public
-marketplace. The goal is to provide a neutral implementation of ARD catalogs,
-registries, clients, verification, and publishing workflows that any organization can
-self-host.
-
-## Positioning
-
-MCP, Skills, A2A, and OpenAPI define how capabilities are used. ARD defines how they are
+MCP, A2A, Skills, and APIs define how capabilities are used. ARD defines how they are
 found.
 
-`ard` aims to provide:
+## What It Will Provide
 
 - A self-hosted ARD registry server.
-- A standards-aligned ARD client.
-- A CLI and publishing kit for adding catalogs and artifacts quickly.
-- A crawler and indexer for `/.well-known/ai-catalog.json` catalogs.
-- Verification and policy primitives for trust-aware enterprise adoption.
+- A standards-aligned ARD client and CLI.
+- Catalog crawling for `/.well-known/ai-catalog.json`.
+- Resource onboarding for MCP, A2A, Skills, OpenAPI, and URL artifacts.
+- Validation, verification, policy, and federation workflows.
 
-## Target Developer Experience
-
-The intended first-run flow should feel like this:
+## Target CLI
 
 ```sh
 ard serve
 ard add catalog https://example.com/.well-known/ai-catalog.json
 ard add mcp https://example.com/mcp/server.json
-ard add openapi ./openapi.yaml
 ard crawl
 ard search "query observability logs" --kind mcp
 ard verify https://example.com/.well-known/ai-catalog.json
 ```
 
-## Early Scope
+## Status
 
-The initial project should focus on the smallest useful enterprise distribution:
+This repository is in early bootstrap. Implementation should track the upstream
+[`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including
+`urn:air:` identifiers, `application/mcp-server-card+json`, and the official conformance
+tools.
 
-- `POST /search` ARD registry endpoint.
-- `GET /.well-known/ai-catalog.json` discovery document.
-- Catalog ingestion for remote ARD catalogs and local artifacts.
-- Exact schema, media type, and domain-anchored `urn:air:` validation.
-- Lightweight verification for publisher domain, trust metadata, and pinned artifacts.
-- Embedded storage and search for easy local and internal deployment.
+See:
 
-## Non-Goals
-
-- A hosted SaaS marketplace.
-- A replacement for MCP, Skills, A2A, or OpenAPI.
-- An agent execution runtime.
-- A heavy enterprise governance suite in the first release.
-- A platform-specific registry tied to one model provider or agent framework.
-
-## Project Notes
-
-This repository is currently in product and architecture bootstrap. The detailed working
-context is captured in:
-
-- [Product Sense](docs/PRODUCT_SENSE.md)
 - [Architecture](docs/ARCHITECTURE.md)
-- [ARD Market Context](docs/references/ard-market-context.md)
+- [Product Sense](docs/PRODUCT_SENSE.md)
 - [ARD Spec Working Notes](docs/references/ard-spec-working-notes.md)
 
 ## License
