@@ -298,6 +298,19 @@ bin/ardctl admin review approve urn:air:pending.example.com:skill:open-browser-u
   --registry-url "${registry_url}" \
   --admin-token "reviewer-token" | grep -q "remote approved urn:air:pending.example.com:skill:open-browser-use"
 bin/ardctl search pending.example --registry-url "${registry_url}" --kind skill --json | grep -q "pending.example.com"
+bin/ardctl admin add skill "${skill_file}" \
+  --publisher pending.example.com \
+  --registry-url "${registry_url}" \
+  --admin-token "${admin_token}" | grep -q "remote imported"
+bin/ardctl admin list --status pending --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-policy-pending-update.json
+grep -q "urn:air:pending.example.com:skill:open-browser-use" /tmp/ard-e2e-policy-pending-update.json
+if bin/ardctl search pending.example --registry-url "${registry_url}" --kind skill --json | grep -q "pending.example.com"; then
+  echo "policy pending update is publicly searchable" >&2
+  exit 1
+fi
+bin/ardctl admin review approve urn:air:pending.example.com:skill:open-browser-use \
+  --registry-url "${registry_url}" \
+  --admin-token "reviewer-token" | grep -q "remote approved urn:air:pending.example.com:skill:open-browser-use"
 bin/ardctl admin status urn:air:pending.example.com:skill:open-browser-use pending \
   --registry-url "${registry_url}" \
   --admin-token "operator-token" | grep -q "remote set urn:air:pending.example.com:skill:open-browser-use status to pending"

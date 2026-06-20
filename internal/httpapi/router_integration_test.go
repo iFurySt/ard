@@ -854,6 +854,42 @@ func TestRouterAdminPolicyWithPostgres(t *testing.T) {
 		t.Fatalf("expected approved entry to become searchable")
 	}
 
+	updatedEntry := pendingEntry
+	updatedEntry.Description = "Quarantine policy update requires review."
+	updatedBody, _ := json.Marshal(updatedEntry)
+	updateRequest := httptest.NewRequest(http.MethodPost, "/admin/entries", bytes.NewReader(updatedBody))
+	updateRequest.Header.Set("Authorization", "Bearer test-token")
+	updateRequest.Header.Set("Content-Type", "application/json")
+	updateResponse := httptest.NewRecorder()
+	router.ServeHTTP(updateResponse, updateRequest)
+	if updateResponse.Code != http.StatusCreated {
+		t.Fatalf("expected policy pending update HTTP 201, got %d: %s", updateResponse.Code, updateResponse.Body.String())
+	}
+	updatedStored, found, err := registryStore.GetEntry(ctx, pendingEntry.Identifier, true)
+	if err != nil {
+		t.Fatalf("get policy pending update: %v", err)
+	}
+	if !found {
+		t.Fatal("expected policy pending update to exist")
+	}
+	if updatedStored.Description != "Quarantine policy update requires review." {
+		t.Fatalf("expected update content to persist, got %#v", updatedStored)
+	}
+	if updatedStored.Metadata["ard.status"] != store.LifecycleStatusPending {
+		t.Fatalf("expected policy update to become pending, got %#v", updatedStored.Metadata)
+	}
+	searchResponse = httptest.NewRecorder()
+	router.ServeHTTP(searchResponse, newSearchRequest())
+	if searchResponse.Code != http.StatusOK {
+		t.Fatalf("expected search after pending update HTTP 200, got %d: %s", searchResponse.Code, searchResponse.Body.String())
+	}
+	if err := json.Unmarshal(searchResponse.Body.Bytes(), &search); err != nil {
+		t.Fatalf("decode pending update search: %v", err)
+	}
+	if len(search.Results) != 0 {
+		t.Fatalf("expected pending update to be hidden from search, got %#v", search.Results)
+	}
+
 	statusBody, _ := json.Marshal(map[string]string{"status": store.LifecycleStatusPending})
 	statusRequest := httptest.NewRequest(http.MethodPatch, "/admin/entries/urn:air:review.example.com:server:policy-weather/status", bytes.NewReader(statusBody))
 	statusRequest.Header.Set("Authorization", "Bearer test-token")

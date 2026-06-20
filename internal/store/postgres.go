@@ -125,6 +125,7 @@ func (store *Store) UpsertCatalog(ctx context.Context, catalog ard.Catalog, sour
 
 func (store *Store) UpsertCatalogWithStatuses(ctx context.Context, catalog ard.Catalog, source string, statuses map[string]string) error {
 	records := make([]CatalogEntryRecord, 0, len(catalog.Entries))
+	statusUpdates := map[string]string{}
 	for _, entry := range catalog.Entries {
 		status := LifecycleStatusActive
 		if statuses != nil && statuses[entry.Identifier] != "" {
@@ -135,27 +136,42 @@ func (store *Store) UpsertCatalogWithStatuses(ctx context.Context, catalog ard.C
 			return err
 		}
 		records = append(records, record)
+		if status != LifecycleStatusActive {
+			statusUpdates[entry.Identifier] = status
+		}
 	}
-	return store.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "identifier"}},
-		DoUpdates: clause.AssignmentColumns([]string{
-			"display_name",
-			"type",
-			"url",
-			"data",
-			"description",
-			"tags",
-			"capabilities",
-			"representative_queries",
-			"version",
-			"updated_at_value",
-			"metadata",
-			"trust_manifest",
-			"source",
-			"search_text",
-			"updated_at",
-		}),
-	}).Create(&records).Error
+	return store.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "identifier"}},
+			DoUpdates: clause.AssignmentColumns([]string{
+				"display_name",
+				"type",
+				"url",
+				"data",
+				"description",
+				"tags",
+				"capabilities",
+				"representative_queries",
+				"version",
+				"updated_at_value",
+				"metadata",
+				"trust_manifest",
+				"source",
+				"search_text",
+				"updated_at",
+			}),
+		}).Create(&records).Error; err != nil {
+			return err
+		}
+		for identifier, status := range statusUpdates {
+			if err := tx.Model(&CatalogEntryRecord{}).
+				Where("identifier = ?", identifier).
+				Update("lifecycle_status", status).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func (store *Store) Search(ctx context.Context, request ard.SearchRequest, source string) ([]ard.SearchResult, error) {

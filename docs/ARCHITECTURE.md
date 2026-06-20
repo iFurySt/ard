@@ -42,7 +42,8 @@ Cobra, Gin, GORM, and Postgres.
   of `active`, `pending`, or `disabled`. Public discovery, search, explore, and catalog
   export only expose `active` entries; admin list can include and filter all statuses.
 - Ingestion policy: an optional `ARD_POLICY_FILE` / `--policy-file` JSON policy can deny
-  entries or create new entries as `pending` based on publisher or media type.
+  entries or require review by moving new or updated entries to `pending` based on
+  publisher or media type.
 - Review workflow: pending entries can be listed through `/admin/reviews` and approved or
   rejected through dedicated review routes and `ardctl admin review`.
 - Audit log: admin mutations append persisted events for upsert, status changes, and

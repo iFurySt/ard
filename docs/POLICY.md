@@ -23,10 +23,13 @@ Set it with `--policy-file` or `ARD_POLICY_FILE`.
 - `denyPublishers` and `denyTypes` reject matching entries before persistence.
 - `pendingPublishers` and `pendingTypes` persist matching new entries with lifecycle
   status `pending`.
+- Re-importing an existing active entry that matches a pending rule updates the stored
+  metadata but moves the entry back to `pending`, hiding it from public discovery until
+  review approval.
 - `defaultStatus` can be `active`, `pending`, or `disabled`; empty defaults to `active`.
 - Deny rules win over pending rules.
-- Re-importing an existing entry updates its metadata but does not overwrite its existing
-  lifecycle status.
+- Re-importing an existing entry without a pending or disabled policy result updates its
+  metadata but does not overwrite its existing lifecycle status.
 - Public search, browse, explore, and catalog export only expose `active` entries.
 - Pending entries can be listed with `ardctl admin review list`.
 - `ardctl admin review approve IDENTIFIER` makes a pending entry active.

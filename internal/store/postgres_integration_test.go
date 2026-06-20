@@ -24,7 +24,12 @@ func TestPostgresImportAndSearch(t *testing.T) {
 	}
 	if err := registryStore.db.Exec(
 		"DELETE FROM catalog_entry_records WHERE identifier IN ?",
-		[]string{"urn:air:acme.com:server:weather", "urn:air:acme.com:agent:assistant", "urn:air:review.acme.com:server:pending-weather"},
+		[]string{
+			"urn:air:acme.com:server:weather",
+			"urn:air:acme.com:agent:assistant",
+			"urn:air:acme.com:server:governed-update",
+			"urn:air:review.acme.com:server:pending-weather",
+		},
 	).Error; err != nil {
 		t.Fatalf("clean entries: %v", err)
 	}
@@ -203,6 +208,63 @@ func TestPostgresImportAndSearch(t *testing.T) {
 		if entry.Type != ard.TypeMCPServerCard {
 			t.Fatalf("expected MCP entry after type filter, got %s", entry.Type)
 		}
+	}
+
+	governedCatalog := ard.Catalog{
+		SpecVersion: "1.0",
+		Entries: []ard.CatalogEntry{
+			{
+				Identifier:            "urn:air:acme.com:server:governed-update",
+				DisplayName:           "Governed Weather MCP",
+				Type:                  ard.TypeMCPServerCard,
+				URL:                   "https://api.acme.com/mcp/governed-weather.json",
+				Description:           "Governed active weather MCP server.",
+				RepresentativeQueries: []string{"governed weather active", "governed forecast"},
+			},
+		},
+	}
+	if err := registryStore.UpsertCatalog(ctx, governedCatalog, "integration-test"); err != nil {
+		t.Fatalf("upsert governed active catalog: %v", err)
+	}
+	governedResults, err := registryStore.Search(ctx, ard.SearchRequest{
+		Query:    ard.SearchQuery{Text: "governed"},
+		PageSize: 10,
+	}, "integration-test")
+	if err != nil {
+		t.Fatalf("search governed active entry: %v", err)
+	}
+	if len(governedResults) != 1 || governedResults[0].Identifier != "urn:air:acme.com:server:governed-update" {
+		t.Fatalf("expected governed active entry to be searchable, got %#v", governedResults)
+	}
+	governedUpdate := governedCatalog
+	governedUpdate.Entries[0].Description = "Governed pending update weather MCP server."
+	if err := registryStore.UpsertCatalogWithStatuses(ctx, governedUpdate, "integration-test", map[string]string{
+		"urn:air:acme.com:server:governed-update": LifecycleStatusPending,
+	}); err != nil {
+		t.Fatalf("upsert governed pending update: %v", err)
+	}
+	governedEntry, found, err := registryStore.GetEntry(ctx, "urn:air:acme.com:server:governed-update", true)
+	if err != nil {
+		t.Fatalf("get governed pending update: %v", err)
+	}
+	if !found {
+		t.Fatal("expected governed entry to exist")
+	}
+	if governedEntry.Description != "Governed pending update weather MCP server." {
+		t.Fatalf("expected governed update content to persist, got %#v", governedEntry)
+	}
+	if got := governedEntry.Metadata["ard.status"]; got != LifecycleStatusPending {
+		t.Fatalf("expected governed update to require review, got %#v", governedEntry.Metadata)
+	}
+	governedResults, err = registryStore.Search(ctx, ard.SearchRequest{
+		Query:    ard.SearchQuery{Text: "governed"},
+		PageSize: 10,
+	}, "integration-test")
+	if err != nil {
+		t.Fatalf("search governed pending update: %v", err)
+	}
+	if len(governedResults) != 0 {
+		t.Fatalf("expected governed pending update to be hidden from search, got %#v", governedResults)
 	}
 
 	exported, err := registryStore.ExportCatalog(ctx, &ard.HostInfo{DisplayName: "Integration Registry"})
