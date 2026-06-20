@@ -91,6 +91,50 @@ func TestVerifyCatalogVerifiesAttestationDigests(t *testing.T) {
 	}
 }
 
+func TestVerifyCatalogVerifiesProvenanceDigests(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, _ = response.Write([]byte("source-artifact"))
+	}))
+	t.Cleanup(server.Close)
+
+	catalogPath := filepath.Join(t.TempDir(), "ai-catalog.json")
+	if err := os.WriteFile(catalogPath, []byte(`{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:example.com:agent:weather",
+      "displayName": "Weather",
+      "type": "application/a2a-agent-card+json",
+      "url": "https://example.com/agent-card.json",
+      "trustManifest": {
+        "identity": "https://example.com",
+        "provenance": [
+          {
+            "relation": "publishedFrom",
+            "sourceId": "`+server.URL+`",
+            "sourceDigest": "`+cliTestSHA256("source-artifact")+`"
+          }
+        ]
+      }
+    }
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("write catalog: %v", err)
+	}
+
+	command := NewRootCommand()
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetErr(&output)
+	command.SetArgs([]string{"verify", "catalog", catalogPath, "--require-provenance-digests", "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("execute verify: %v", err)
+	}
+	if !strings.Contains(output.String(), `"provenanceDigestsVerified": 1`) {
+		t.Fatalf("expected provenance digest verification output, got %s", output.String())
+	}
+}
+
 func TestVerifyCatalogVerifiesJWSSignatures(t *testing.T) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

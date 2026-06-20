@@ -58,6 +58,8 @@ ard verify catalog ./ai-catalog.json --source-digests
 ard verify catalog ./ai-catalog.json --require-source-digests
 ard verify catalog ./ai-catalog.json --attestation-digests
 ard verify catalog ./ai-catalog.json --require-attestation-digests
+ard verify catalog ./ai-catalog.json --provenance-digests
+ard verify catalog ./ai-catalog.json --require-provenance-digests
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
@@ -88,6 +90,7 @@ bin/ardctl --database-url "$DATABASE_URL" list --filter "type = 'application/ope
 bin/ard verify catalog ./internal/catalog/testdata/acme-ai-catalog.json
 bin/ard verify catalog ./ai-catalog.json --require-source-digests
 bin/ard verify catalog ./ai-catalog.json --attestation-digests
+bin/ard verify catalog ./ai-catalog.json --provenance-digests
 bin/ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 bin/ard --database-url "$DATABASE_URL" crawl https://example.com/
 bin/ardctl --database-url "$DATABASE_URL" export catalog -o ai-catalog.json
@@ -139,7 +142,8 @@ deployments can use a single admin token or reloadable role-scoped admin token f
 artifacts can be pinned and verified with `trustManifest.sourceDigest`, and detached JWS
 `trustManifest.signature` values can be verified against explicit Ed25519 or local JWKS
 trust anchors. Attestation documents can be fetched and verified against pinned
-`trustManifest.attestations[].digest` values.
+`trustManifest.attestations[].digest` values, and HTTP(S) provenance sources can be
+verified against pinned `trustManifest.provenance[].sourceDigest` values.
 Search supports
 client-followed federation referrals, bounded server-side `federation=auto` upstream
 score-ranked result merging with opaque cross-registry page tokens, and `pageToken`

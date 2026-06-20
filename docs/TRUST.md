@@ -38,6 +38,8 @@ ard verify catalog ./ai-catalog.json --source-digests
 ard verify catalog ./ai-catalog.json --require-source-digests
 ard verify catalog ./ai-catalog.json --attestation-digests
 ard verify catalog ./ai-catalog.json --require-attestation-digests
+ard verify catalog ./ai-catalog.json --provenance-digests
+ard verify catalog ./ai-catalog.json --require-provenance-digests
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
@@ -52,6 +54,13 @@ When `--attestation-digests` is enabled, `ard` fetches each
 `trustManifest.attestations[]` document that has a `digest`, computes `sha256`, and fails
 if the digest does not match. `--require-attestation-digests` requires every attestation
 item to include `digest` and verifies all of them.
+
+When `--provenance-digests` is enabled, `ard` fetches each
+`trustManifest.provenance[]` link that has a `sourceDigest`, computes `sha256`, and
+fails if the digest does not match. The `sourceId` must be an HTTP(S) URL for byte
+verification. `--require-provenance-digests` requires every HTTP(S) provenance `sourceId`
+to include `sourceDigest` and verifies all pinned HTTP(S) provenance sources. URN
+`sourceId` values are valid lineage identifiers but are not retrievable by this verifier.
 
 When `--jws-trust-anchors` is enabled, `ard` verifies entries that carry
 `trustManifest.signature` as detached compact JWS signatures. The signed payload is the
@@ -128,6 +137,9 @@ verifiable `trustManifest.signature`.
 - Implemented: attestation document digest verification.
 - Implemented: strict attestation digest requirements with
   `ard verify catalog --require-attestation-digests`.
+- Implemented: HTTP(S) provenance source digest verification.
+- Implemented: strict HTTP(S) provenance source digest requirements with
+  `ard verify catalog --require-provenance-digests`.
 - Implemented: detached compact JWS verification for `trustManifest.signature` with
   explicit Ed25519 trust anchors through `ard verify catalog --jws-trust-anchors`.
 - Implemented: local JWKS OKP/Ed25519 trust-anchor files for signature verification.
@@ -148,6 +160,10 @@ Catalog host trust metadata is validated for shape and URI syntax only because
 Attestation digest verification proves byte integrity for the fetched attestation
 document only. It does not decide whether the attestation is authentic, current, issued
 by a trusted auditor, or semantically true.
+
+Provenance digest verification proves byte integrity for fetched HTTP(S) provenance
+sources only. It does not resolve URN source identifiers, prove lineage truth, prove who
+published the source, or decide whether a provenance relation is semantically valid.
 
 JWS verification proves the configured Ed25519 key signed the trust manifest bytes that
 `ard` verified. It does not prove who controls the key, resolve DID/SPIFFE identities,
