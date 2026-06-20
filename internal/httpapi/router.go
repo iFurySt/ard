@@ -399,8 +399,15 @@ func (server Server) adminUpsertCatalog(context *gin.Context) {
 
 func (server Server) adminAuditEvents(context *gin.Context) {
 	limit, _ := strconv.Atoi(context.DefaultQuery("pageSize", "50"))
-	events, total, err := server.store.ListAuditEvents(context.Request.Context(), limit)
+	page, err := server.store.ListAuditEventsPage(context.Request.Context(), limit, context.Query("pageToken"))
 	if err != nil {
+		if errors.Is(err, pagination.ErrInvalidToken) {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
 		context.JSON(http.StatusInternalServerError, gin.H{
 			"errorCode": "INTERNAL_ERROR",
 			"message":   err.Error(),
@@ -408,8 +415,9 @@ func (server Server) adminAuditEvents(context *gin.Context) {
 		return
 	}
 	context.JSON(http.StatusOK, gin.H{
-		"items": events,
-		"total": total,
+		"items":     page.Events,
+		"total":     page.Total,
+		"pageToken": page.NextPageToken,
 	})
 }
 

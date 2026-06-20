@@ -348,6 +348,14 @@ bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_t
 grep -q '"action":"entry.status"' /tmp/ard-e2e-audit.json
 grep -q '"identifier":"urn:air:github.com:skill:open-browser-use"' /tmp/ard-e2e-audit.json
 grep -q '"requestId":"' /tmp/ard-e2e-audit.json
+bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_token}" --limit 1 --json >/tmp/ard-e2e-audit-page1.json
+audit_page_token="$(python3 -c 'import json; print(json.load(open("/tmp/ard-e2e-audit-page1.json")).get("pageToken", ""))')"
+if [ -z "${audit_page_token}" ]; then
+  echo "admin audit did not return a page token" >&2
+  exit 1
+fi
+bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_token}" --limit 1 --page-token "${audit_page_token}" --json >/tmp/ard-e2e-audit-page2.json
+grep -q '"items"' /tmp/ard-e2e-audit-page2.json
 
 bin/ardctl admin remove urn:air:raw.githubusercontent.com:server:agentmemory-mcp \
   --registry-url "${registry_url}" \

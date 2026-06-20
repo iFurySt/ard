@@ -17,8 +17,8 @@ Cobra, Gin, GORM, and Postgres.
   to the dedicated `ard-server` runtime entrypoint. `infra/compose.yaml` runs the
   registry with Postgres for local self-hosted trials.
 - Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
-- Pagination: `POST /search`, `GET /agents`, and admin list/review endpoints return
-  opaque offset page tokens when additional local results are available.
+- Pagination: `POST /search`, `GET /agents`, and admin list/review/audit endpoints
+  return opaque offset page tokens when additional local results are available.
 - Federation referrals: `POST /search` supports `federation=referrals` by returning
   active `application/ai-registry+json` entries in `SearchResponse.referrals` for
   client-followed federation.
@@ -163,8 +163,8 @@ boundary without changing HTTP contracts.
 - `GET /health`: deployment health. Implemented.
 - `GET /metrics`: Prometheus-style operational metrics. Implemented.
 - `/admin/*`: implementation-specific management routes; disabled unless an admin token
-  is configured. Implemented, including entry lifecycle status management and audit event
-  listing.
+  is configured. Implemented, including entry lifecycle status management and paginated
+  audit event listing.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`,
   `add openapi`, `crawl`, `admin`, `export catalog`, `list`, `remove`, `verify catalog`,
   and `search` are implemented. `ardctl admin status` manages remote entry lifecycle

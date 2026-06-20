@@ -40,6 +40,7 @@ ardctl admin add catalog ./ai-catalog.json --registry-url https://registry.examp
 ardctl admin status urn:air:example.com:server:weather disabled --registry-url https://registry.example.com
 ardctl admin review approve urn:air:example.com:server:weather --registry-url https://registry.example.com
 ardctl admin audit --registry-url https://registry.example.com --admin-token "$ARD_ADMIN_TOKEN"
+ardctl admin audit --limit 10 --page-token "$PAGE_TOKEN" --registry-url https://registry.example.com
 ard search "query observability logs" --kind mcp
 ard search "query observability logs" --limit 10 --page-token "$PAGE_TOKEN" --json
 ard search "query observability logs" --federation referrals --json
@@ -86,8 +87,8 @@ events without exposing inactive resources through public discovery. Server depl
 can use a single admin token or role-scoped admin tokens. URL artifacts can be pinned and
 verified with `trustManifest.sourceDigest`. Search supports client-followed federation
 referrals, bounded server-side `federation=auto` upstream result merging, and opaque
-`pageToken` pagination for search and list responses. The registry also exposes request
-correlation, JSON access logs, and Prometheus-style `/metrics`.
+`pageToken` pagination for search, list, review, and audit responses. The registry also
+exposes request correlation, JSON access logs, and Prometheus-style `/metrics`.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. CI runs formatting checks, tests,
 builds, and Postgres integration tests.

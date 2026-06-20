@@ -99,6 +99,12 @@ type ListEntriesPage struct {
 	NextPageToken string
 }
 
+type AuditEventsPage struct {
+	Events        []AuditEvent
+	Total         int64
+	NextPageToken string
+}
+
 func Open(databaseURL string) (*Store, error) {
 	db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
 	if err != nil {
@@ -360,19 +366,37 @@ func (store *Store) RecordAuditEvent(ctx context.Context, event AuditEvent) erro
 }
 
 func (store *Store) ListAuditEvents(ctx context.Context, limit int) ([]AuditEvent, int64, error) {
+	page, err := store.ListAuditEventsPage(ctx, limit, "")
+	if err != nil {
+		return nil, 0, err
+	}
+	return page.Events, page.Total, nil
+}
+
+func (store *Store) ListAuditEventsPage(ctx context.Context, limit int, pageToken string) (AuditEventsPage, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 50
 	}
+	offset, err := pagination.Offset(pageToken)
+	if err != nil {
+		return AuditEventsPage{}, err
+	}
 	var total int64
 	if err := store.db.WithContext(ctx).Model(&AuditEventRecord{}).Count(&total).Error; err != nil {
-		return nil, 0, err
+		return AuditEventsPage{}, err
 	}
 	var records []AuditEventRecord
 	if err := store.db.WithContext(ctx).
-		Order("created_at DESC").
-		Limit(limit).
+		Order("created_at DESC, id DESC").
+		Offset(offset).
+		Limit(limit + 1).
 		Find(&records).Error; err != nil {
-		return nil, 0, err
+		return AuditEventsPage{}, err
+	}
+	nextToken := ""
+	if len(records) > limit {
+		nextToken = pagination.Token(offset + limit)
+		records = records[:limit]
 	}
 	events := make([]AuditEvent, 0, len(records))
 	for _, record := range records {
@@ -387,7 +411,7 @@ func (store *Store) ListAuditEvents(ctx context.Context, limit int) ([]AuditEven
 			CreatedAt:  record.CreatedAt,
 		})
 	}
-	return events, total, nil
+	return AuditEventsPage{Events: events, Total: total, NextPageToken: nextToken}, nil
 }
 
 func (store *Store) ExportCatalog(ctx context.Context, host *ard.HostInfo) (ard.Catalog, error) {

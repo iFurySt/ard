@@ -555,10 +555,15 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 		t.Fatalf("expected audit HTTP 200, got %d: %s", auditResponse.Code, auditResponse.Body.String())
 	}
 	var audit struct {
-		Items []store.AuditEvent `json:"items"`
+		Items     []store.AuditEvent `json:"items"`
+		Total     int64              `json:"total"`
+		PageToken string             `json:"pageToken"`
 	}
 	if err := json.Unmarshal(auditResponse.Body.Bytes(), &audit); err != nil {
 		t.Fatalf("decode audit: %v", err)
+	}
+	if audit.Total < 3 {
+		t.Fatalf("expected at least three audit events, got %d", audit.Total)
 	}
 	seen := map[string]bool{}
 	seenRequestID := false
@@ -580,6 +585,52 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 	}
 	if !seenRequestID {
 		t.Fatalf("expected status audit event to include request id, got %#v", audit.Items)
+	}
+
+	firstAuditPageRequest := httptest.NewRequest(http.MethodGet, "/admin/audit?pageSize=1", nil)
+	firstAuditPageRequest.Header.Set("Authorization", "Bearer test-token")
+	firstAuditPageResponse := httptest.NewRecorder()
+	router.ServeHTTP(firstAuditPageResponse, firstAuditPageRequest)
+	if firstAuditPageResponse.Code != http.StatusOK {
+		t.Fatalf("expected audit page HTTP 200, got %d: %s", firstAuditPageResponse.Code, firstAuditPageResponse.Body.String())
+	}
+	var firstAuditPage struct {
+		Items     []store.AuditEvent `json:"items"`
+		PageToken string             `json:"pageToken"`
+	}
+	if err := json.Unmarshal(firstAuditPageResponse.Body.Bytes(), &firstAuditPage); err != nil {
+		t.Fatalf("decode first audit page: %v", err)
+	}
+	if len(firstAuditPage.Items) != 1 || firstAuditPage.PageToken == "" {
+		t.Fatalf("expected one audit event and next page token, got %#v", firstAuditPage)
+	}
+
+	secondAuditPageRequest := httptest.NewRequest(http.MethodGet, "/admin/audit?pageSize=1&pageToken="+firstAuditPage.PageToken, nil)
+	secondAuditPageRequest.Header.Set("Authorization", "Bearer test-token")
+	secondAuditPageResponse := httptest.NewRecorder()
+	router.ServeHTTP(secondAuditPageResponse, secondAuditPageRequest)
+	if secondAuditPageResponse.Code != http.StatusOK {
+		t.Fatalf("expected second audit page HTTP 200, got %d: %s", secondAuditPageResponse.Code, secondAuditPageResponse.Body.String())
+	}
+	var secondAuditPage struct {
+		Items []store.AuditEvent `json:"items"`
+	}
+	if err := json.Unmarshal(secondAuditPageResponse.Body.Bytes(), &secondAuditPage); err != nil {
+		t.Fatalf("decode second audit page: %v", err)
+	}
+	if len(secondAuditPage.Items) != 1 {
+		t.Fatalf("expected one audit event on second page, got %#v", secondAuditPage)
+	}
+	if secondAuditPage.Items[0].ID == firstAuditPage.Items[0].ID {
+		t.Fatalf("expected second audit page to advance, got duplicate event %s", secondAuditPage.Items[0].ID)
+	}
+
+	invalidAuditPageRequest := httptest.NewRequest(http.MethodGet, "/admin/audit?pageToken=not-a-valid-page-token", nil)
+	invalidAuditPageRequest.Header.Set("Authorization", "Bearer test-token")
+	invalidAuditPageResponse := httptest.NewRecorder()
+	router.ServeHTTP(invalidAuditPageResponse, invalidAuditPageRequest)
+	if invalidAuditPageResponse.Code != http.StatusBadRequest {
+		t.Fatalf("expected invalid audit page token HTTP 400, got %d: %s", invalidAuditPageResponse.Code, invalidAuditPageResponse.Body.String())
 	}
 }
 

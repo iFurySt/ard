@@ -44,6 +44,7 @@ func newAdminCommand() *cobra.Command {
 
 func newAdminAuditCommand(options *adminOptions) *cobra.Command {
 	var limit int
+	var pageToken string
 	var jsonOutput bool
 	command := &cobra.Command{
 		Use:   "audit",
@@ -52,6 +53,9 @@ func newAdminAuditCommand(options *adminOptions) *cobra.Command {
 			query := url.Values{}
 			if limit > 0 {
 				query.Set("pageSize", fmt.Sprint(limit))
+			}
+			if pageToken != "" {
+				query.Set("pageToken", pageToken)
 			}
 			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/audit?"+query.Encode(), nil)
 			if err != nil {
@@ -82,6 +86,7 @@ func newAdminAuditCommand(options *adminOptions) *cobra.Command {
 		},
 	}
 	command.Flags().IntVar(&limit, "limit", 50, "Maximum audit events to list")
+	command.Flags().StringVar(&pageToken, "page-token", "", "Opaque page token returned by a previous admin audit response")
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print remote audit response JSON")
 	return command
 }
