@@ -233,7 +233,7 @@ func ValidateCatalogEntry(entry CatalogEntry) error {
 		return errors.New("exactly one of url or data must be present")
 	}
 	if entry.URL != "" {
-		if _, err := url.ParseRequestURI(entry.URL); err != nil {
+		if err := validateHTTPURL(entry.URL); err != nil {
 			return fmt.Errorf("url is invalid: %w", err)
 		}
 	}
@@ -423,6 +423,20 @@ func validateAbsoluteURI(value string) error {
 	}
 	if parsed.Scheme == "" {
 		return errors.New("scheme is required")
+	}
+	return nil
+}
+
+func validateHTTPURL(value string) error {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return errors.New("scheme must be http or https")
+	}
+	if parsed.Host == "" {
+		return errors.New("host is required")
 	}
 	return nil
 }

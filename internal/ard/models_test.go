@@ -103,6 +103,33 @@ func TestValidateCatalogEntryEnforcesValueOrReference(t *testing.T) {
 	}
 }
 
+func TestValidateCatalogEntryURLRequiresHTTPURL(t *testing.T) {
+	entry := CatalogEntry{
+		Identifier:  "urn:air:acme.com:server:weather",
+		DisplayName: "Weather Data Node",
+		Type:        TypeMCPServerCard,
+		URL:         "http://127.0.0.1:8080/mcp/weather.json",
+	}
+	if err := ValidateCatalogEntry(entry); err != nil {
+		t.Fatalf("expected http URL to validate: %v", err)
+	}
+
+	entry.URL = "/mcp/weather.json"
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected relative URL to be rejected")
+	}
+
+	entry.URL = "urn:air:acme.com:server:weather"
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected non-HTTP URL to be rejected")
+	}
+
+	entry.URL = "https:///mcp/weather.json"
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected URL without host to be rejected")
+	}
+}
+
 func TestValidateCatalogEntryUpdatedAtAndMetadata(t *testing.T) {
 	entry := CatalogEntry{
 		Identifier:  "urn:air:acme.com:server:weather",

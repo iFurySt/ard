@@ -43,6 +43,7 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 ## Current Scope
 
 - Implemented: `trustManifest.identity` presence validation.
+- Implemented: catalog entry `url` validation for absolute HTTP(S) URLs.
 - Implemented: catalog `host` metadata validation for required display name, absolute
   documentation/logo URIs, and host-level `trustManifest` structure.
 - Implemented: catalog entry `updatedAt` date-time validation and scalar-only

@@ -40,6 +40,7 @@ Use this document to make secure defaults explicit and legible to agents.
 - `--pin-source-digest` can add `trustManifest.sourceDigest` for URL artifacts.
 - Catalog `host` metadata is validated for required display name, absolute
   documentation/logo URIs, and host-level `trustManifest` structure.
+- Catalog entry `url` values must be absolute HTTP(S) URLs.
 - Catalog entry `updatedAt` must be an RFC3339 date-time when present, and entry
   `metadata` values must be strings, numbers, booleans, or null.
 - `trustManifest.identityType`, when present, must be one of the ARD schema values:
