@@ -67,6 +67,10 @@ Use this document to make secure defaults explicit and legible to agents.
 - `ard verify catalog --require-source-digests` requires every URL-delivered entry to
   carry `trustManifest.sourceDigest` and verifies those digests. Embedded `data`
   entries are exempt.
+- `ard verify catalog --attestation-digests` fetches attestation documents and verifies
+  pinned `trustManifest.attestations[].digest` values.
+- `ard verify catalog --require-attestation-digests` requires every attestation document
+  to carry `digest` and verifies all attestation digests.
 - `ard verify catalog --jws-trust-anchors ./trust-anchors.json` verifies detached compact
   JWS `trustManifest.signature` values against explicit Ed25519 trust anchors. The
   trust-anchor file can use either ard's native `publicKey` format or local JWKS
@@ -76,9 +80,11 @@ Use this document to make secure defaults explicit and legible to agents.
   `--jws-trust-anchors`.
 - Source digest verification proves byte integrity for the fetched URL only. It does not
   prove publisher identity, trust schema authority, attestation truth, runtime safety, or
-  compliance status. JWS verification proves the configured key signed the
-  `trustManifest` payload; it does not prove who controls that key or whether the signed
-  claims are true, and it does not fetch remote JWKS documents.
+  compliance status. Attestation digest verification proves byte integrity for fetched
+  attestation documents only; it does not prove claim truth or auditor trust. JWS
+  verification proves the configured key signed the `trustManifest` payload; it does not
+  prove who controls that key or whether the signed claims are true, and it does not
+  fetch remote JWKS documents.
 - Detailed trust behavior is in `docs/TRUST.md`.
 
 ## Audit Events
@@ -99,11 +105,12 @@ Use this document to make secure defaults explicit and legible to agents.
 - HTTP responses include W3C `traceparent`.
 - JSON access logs include request ID, trace ID, span ID, method, path, status, latency,
   and client IP.
-- Outbound catalog/artifact fetches and source digest verification forward
+- Outbound catalog/artifact fetches, source digest verification, and attestation digest
+  verification forward
   `X-Request-ID` for correlation when present in context.
-- Outbound federation, catalog/artifact fetches, source digest verification, and admin
-  client requests forward `traceparent` for trace context propagation when present in
-  context.
+- Outbound federation, catalog/artifact fetches, source digest verification, attestation
+  digest verification, and admin client requests forward `traceparent` for trace context
+  propagation when present in context.
 - `ardctl admin --request-id` and `ARD_REQUEST_ID` set the correlation ID for an admin
   operation. If neither is set, `ardctl admin` generates one.
 - Trace IDs and span IDs are correlation metadata, not authentication or authorization
@@ -137,7 +144,7 @@ Use this document to make secure defaults explicit and legible to agents.
   is still static until restart.
 - No externally anchored or signed audit log yet.
 - No signed policy bundle or external policy engine yet.
-- No attestation document fetch or content verification yet.
+- No attestation truth, auditor trust, or freshness verification yet.
 - No DID, SPIFFE, certificate, or automatic key-resolution verification yet.
 
 ## Scope

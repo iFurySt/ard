@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Security | Enterprises can verify that referenced attestation documents have not changed. | Added `ard verify catalog --attestation-digests` and `--require-attestation-digests` to fetch attestation documents, verify pinned `trustManifest.attestations[].digest` values, and optionally require every attestation to be pinned. |
 | 2026-06-21 | Security | Operators can reuse standard JWKS key files for signed catalog verification. | Extended `ard verify catalog --jws-trust-anchors` to accept local JWKS OKP/Ed25519 trust anchors in addition to the existing ard-native key format, with unit and CLI coverage. |
 | 2026-06-21 | Security | Catalog imports catch more publisher impersonation mistakes before persistence. | Added `trustManifest.identityType` shape checks and trust-domain alignment for SPIFFE and `did:web` identities in addition to HTTP(S) identities. |
 | 2026-06-21 | Security | Enterprises can verify signed trust metadata before accepting catalog entries. | Added `ard verify catalog --jws-trust-anchors` for detached compact JWS `trustManifest.signature` verification with explicit Ed25519 trust anchors, plus `--require-jws-signatures` for strict signed-catalog gates. |

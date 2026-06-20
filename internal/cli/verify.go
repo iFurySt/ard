@@ -23,6 +23,8 @@ func newVerifyCatalogCommand() *cobra.Command {
 	var jsonOutput bool
 	var verifySourceDigests bool
 	var requireSourceDigests bool
+	var verifyAttestationDigests bool
+	var requireAttestationDigests bool
 	var jwsTrustAnchors string
 	var requireJWSSignatures bool
 	command := &cobra.Command{
@@ -45,6 +47,16 @@ func newVerifyCatalogCommand() *cobra.Command {
 				}
 				sourceDigestResults = results
 			}
+			attestationDigestResults := []verify.AttestationDigestResult{}
+			if verifyAttestationDigests || requireAttestationDigests {
+				results, err := verify.VerifyAttestationDigestsWithOptions(ctx, loadedCatalog, verify.AttestationDigestOptions{
+					RequirePinnedAttestations: requireAttestationDigests,
+				})
+				if err != nil {
+					return err
+				}
+				attestationDigestResults = results
+			}
 			signatureResults := []verify.SignatureResult{}
 			if jwsTrustAnchors != "" || requireJWSSignatures {
 				if jwsTrustAnchors == "" {
@@ -65,11 +77,12 @@ func newVerifyCatalogCommand() *cobra.Command {
 			}
 			if jsonOutput {
 				payload := map[string]any{
-					"valid":                 true,
-					"specVersion":           loadedCatalog.SpecVersion,
-					"entries":               len(loadedCatalog.Entries),
-					"sourceDigestsVerified": len(sourceDigestResults),
-					"signaturesVerified":    len(signatureResults),
+					"valid":                      true,
+					"specVersion":                loadedCatalog.SpecVersion,
+					"entries":                    len(loadedCatalog.Entries),
+					"sourceDigestsVerified":      len(sourceDigestResults),
+					"attestationDigestsVerified": len(attestationDigestResults),
+					"signaturesVerified":         len(signatureResults),
 				}
 				if verifySourceDigests {
 					payload["sourceDigests"] = sourceDigestResults
@@ -77,6 +90,13 @@ func newVerifyCatalogCommand() *cobra.Command {
 				if requireSourceDigests {
 					payload["sourceDigestsRequired"] = true
 					payload["sourceDigests"] = sourceDigestResults
+				}
+				if verifyAttestationDigests {
+					payload["attestationDigests"] = attestationDigestResults
+				}
+				if requireAttestationDigests {
+					payload["attestationDigestsRequired"] = true
+					payload["attestationDigests"] = attestationDigestResults
 				}
 				if jwsTrustAnchors != "" {
 					payload["signatures"] = signatureResults
@@ -103,6 +123,12 @@ func newVerifyCatalogCommand() *cobra.Command {
 			if requireSourceDigests {
 				fmt.Fprintf(cmd.OutOrStdout(), "required source digests: true\n")
 			}
+			if verifyAttestationDigests || requireAttestationDigests {
+				fmt.Fprintf(cmd.OutOrStdout(), "verified attestation digests: %d\n", len(attestationDigestResults))
+			}
+			if requireAttestationDigests {
+				fmt.Fprintf(cmd.OutOrStdout(), "required attestation digests: true\n")
+			}
 			if jwsTrustAnchors != "" || requireJWSSignatures {
 				fmt.Fprintf(cmd.OutOrStdout(), "verified signatures: %d\n", len(signatureResults))
 			}
@@ -115,6 +141,8 @@ func newVerifyCatalogCommand() *cobra.Command {
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print machine-readable verification result")
 	command.Flags().BoolVar(&verifySourceDigests, "source-digests", false, "Fetch URL artifacts and verify trustManifest.sourceDigest")
 	command.Flags().BoolVar(&requireSourceDigests, "require-source-digests", false, "Require every URL artifact to have trustManifest.sourceDigest and verify it")
+	command.Flags().BoolVar(&verifyAttestationDigests, "attestation-digests", false, "Fetch attestation documents and verify trustManifest.attestations[].digest")
+	command.Flags().BoolVar(&requireAttestationDigests, "require-attestation-digests", false, "Require every trustManifest attestation to have digest and verify it")
 	command.Flags().StringVar(&jwsTrustAnchors, "jws-trust-anchors", "", "JSON trust anchors for verifying detached JWS trustManifest.signature values")
 	command.Flags().BoolVar(&requireJWSSignatures, "require-jws-signatures", false, "Require every catalog entry to have a verifiable detached JWS trustManifest.signature")
 	return command

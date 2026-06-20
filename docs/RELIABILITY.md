@@ -17,8 +17,9 @@ Define the operational bar for the repository here.
   response, access log line, and audit event.
 - Server-side `federation=auto` upstream requests propagate the inbound `X-Request-ID`
   so local and upstream registry logs can be correlated.
-- Outbound catalog fetches, artifact onboarding fetches, and source digest verification
-  propagate `X-Request-ID` when their context carries one.
+- Outbound catalog fetches, artifact onboarding fetches, source digest verification, and
+  attestation digest verification propagate `X-Request-ID` when their context carries
+  one.
 - `ardctl admin` generates an operation-level request ID by default and also accepts
   `--request-id` or `ARD_REQUEST_ID`, allowing a remote artifact fetch and the following
   admin API mutation to share one correlation ID.
@@ -31,7 +32,8 @@ Define the operational bar for the repository here.
 - If absent or invalid, the registry generates a new trace context.
 - JSON access logs include `traceId` and `spanId`.
 - Server-side federation, outbound catalog/artifact fetches, source digest verification,
-  and `ardctl admin` requests propagate `traceparent` when their context carries one.
+  attestation digest verification, and `ardctl admin` requests propagate `traceparent`
+  when their context carries one.
 
 ## Logging
 

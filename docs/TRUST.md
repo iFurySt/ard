@@ -36,6 +36,8 @@ Use:
 ```sh
 ard verify catalog ./ai-catalog.json --source-digests
 ard verify catalog ./ai-catalog.json --require-source-digests
+ard verify catalog ./ai-catalog.json --attestation-digests
+ard verify catalog ./ai-catalog.json --require-attestation-digests
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
@@ -45,6 +47,11 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 When `--require-source-digests` is enabled, every URL-delivered entry must have
 `trustManifest.sourceDigest`; embedded `data` entries are exempt because they do not
 have a retrievable source URL.
+
+When `--attestation-digests` is enabled, `ard` fetches each
+`trustManifest.attestations[]` document that has a `digest`, computes `sha256`, and fails
+if the digest does not match. `--require-attestation-digests` requires every attestation
+item to include `digest` and verifies all of them.
 
 When `--jws-trust-anchors` is enabled, `ard` verifies entries that carry
 `trustManifest.signature` as detached compact JWS signatures. The signed payload is the
@@ -118,13 +125,16 @@ verifiable `trustManifest.signature`.
 - Implemented: URL artifact source digest verification.
 - Implemented: strict URL artifact source digest requirements with
   `ard verify catalog --require-source-digests`.
+- Implemented: attestation document digest verification.
+- Implemented: strict attestation digest requirements with
+  `ard verify catalog --require-attestation-digests`.
 - Implemented: detached compact JWS verification for `trustManifest.signature` with
   explicit Ed25519 trust anchors through `ard verify catalog --jws-trust-anchors`.
 - Implemented: local JWKS OKP/Ed25519 trust-anchor files for signature verification.
 - Implemented: strict catalog signature requirements with
   `ard verify catalog --require-jws-signatures`.
 - Implemented: admin audit event hash chaining and chain verification.
-- Not implemented yet: attestation document fetch or content verification.
+- Not implemented yet: attestation truth, auditor trust, or freshness verification.
 - Not implemented yet: DID, SPIFFE, certificate, or key resolution.
 - Not implemented yet: externally anchored or signed audit trails.
 
@@ -135,7 +145,11 @@ certificate identity, DID document control, SPIFFE SVID validity, or signature v
 Catalog host trust metadata is validated for shape and URI syntax only because
 `host.identifier` is not a catalog entry `urn:air:` identifier.
 
+Attestation digest verification proves byte integrity for the fetched attestation
+document only. It does not decide whether the attestation is authentic, current, issued
+by a trusted auditor, or semantically true.
+
 JWS verification proves the configured Ed25519 key signed the trust manifest bytes that
 `ard` verified. It does not prove who controls the key, resolve DID/SPIFFE identities,
-validate certificates, fetch attestations, fetch remote JWKS documents, run OIDC
-discovery, or decide whether the signed claims are true.
+validate certificates, fetch remote JWKS documents, run OIDC discovery, or decide whether
+the signed claims are true.
