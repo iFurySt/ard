@@ -1,7 +1,7 @@
 PROJECT ?=
 SLUG ?=
 
-.PHONY: init new-history new-plan fmt test test-integration build
+.PHONY: init new-history new-plan fmt fmt-check test test-integration build
 
 init:
 	@if [ -z "$(PROJECT)" ]; then echo "usage: make init PROJECT=my-project"; exit 1; fi
@@ -17,6 +17,9 @@ new-plan:
 
 fmt:
 	gofmt -w cmd internal
+
+fmt-check:
+	./scripts/check-fmt.sh
 
 test:
 	go test ./...

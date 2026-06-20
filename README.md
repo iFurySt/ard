@@ -42,6 +42,7 @@ ard verify catalog https://example.com/.well-known/ai-catalog.json
 ```sh
 make build
 make test-integration
+make fmt-check
 
 bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/acme-ai-catalog.json
 bin/ard --database-url "$DATABASE_URL" add mcp ./internal/adapters/testdata/mcp-server-card.json
@@ -68,7 +69,7 @@ crawl, MCP/A2A/Skill artifact onboarding, catalog verification, ARD search, brow
 explore facets, catalog export, local listing, entry removal, and token-protected admin
 API routes with an `ardctl admin` client. It builds three entry points: `ard` for the
 combined toolkit, `ardctl` for CLI/client operations, and `ard-server` for the registry
-server.
+server. CI runs formatting checks, tests, builds, and Postgres integration tests.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including

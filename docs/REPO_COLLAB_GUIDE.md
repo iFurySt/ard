@@ -33,9 +33,12 @@ This document defines the default collaboration model for an agent-first reposit
 
 ## CI/CD And Release Posture
 
-- This template does not ship built-in CI/CD, avoiding unmaintained placeholder automation.
-- After the real stack arrives, add the smallest real test, build, scan, and release path.
-- When adding pipelines, document the entry points, release artifacts, and operational assumptions in the relevant repository docs in the same change.
+- GitHub Actions CI runs formatting checks, unit tests, builds, and Postgres integration
+  tests on pushes to `main` and pull requests.
+- CI uses a Postgres 16 service and passes `ARD_TEST_DATABASE_URL` into
+  `make test-integration`; local runs without that variable still use Docker.
+- Release packaging is not automated yet. When release automation is added, document the
+  release artifacts and operational assumptions in the same change.
 
 ## Configuration Hygiene
 

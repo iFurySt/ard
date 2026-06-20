@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+if [ -n "${ARD_TEST_DATABASE_URL:-}" ]; then
+  go test ./...
+  exit 0
+fi
+
 container_name="ard-postgres-test"
 port="${ARD_TEST_POSTGRES_PORT:-55432}"
 database_url="postgres://ard:ard@127.0.0.1:${port}/ard_test?sslmode=disable"
