@@ -25,16 +25,22 @@ Use this document to make secure defaults explicit and legible to agents.
 
 - Admin upsert, lifecycle status, and delete operations append persisted audit events.
 - Audit events record action, identifier, status when relevant, source, remote address,
-  and timestamp.
+  request ID, and timestamp.
 - Audit events do not record admin bearer tokens or request bodies.
 - The current audit log is an MVP event trail, not a complete tamper-evident audit
   system.
+
+## Request Logging
+
+- HTTP responses include `X-Request-ID`.
+- JSON access logs include request ID, method, path, status, latency, and client IP.
+- Access logs must not include admin bearer tokens or request bodies.
 
 ## Current Gaps
 
 - No role-based authorization yet.
 - No token rotation workflow yet.
-- No tamper-evident audit log or request correlation IDs yet.
+- No tamper-evident audit log yet.
 - No signature or trust manifest verification beyond schema-level validation yet.
 
 ## Scope

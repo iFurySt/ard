@@ -52,6 +52,7 @@ type AuditEventRecord struct {
 	Action     string `gorm:"not null;index"`
 	Identifier string `gorm:"index"`
 	Status     string
+	RequestID  string `gorm:"index"`
 	Source     string `gorm:"not null;index"`
 	RemoteAddr string
 	CreatedAt  time.Time `gorm:"index"`
@@ -62,6 +63,7 @@ type AuditEvent struct {
 	Action     string    `json:"action"`
 	Identifier string    `json:"identifier,omitempty"`
 	Status     string    `json:"status,omitempty"`
+	RequestID  string    `json:"requestId,omitempty"`
 	Source     string    `json:"source"`
 	RemoteAddr string    `json:"remoteAddr,omitempty"`
 	CreatedAt  time.Time `json:"createdAt"`
@@ -230,6 +232,7 @@ func (store *Store) RecordAuditEvent(ctx context.Context, event AuditEvent) erro
 		Action:     event.Action,
 		Identifier: event.Identifier,
 		Status:     event.Status,
+		RequestID:  event.RequestID,
 		Source:     event.Source,
 		RemoteAddr: event.RemoteAddr,
 		CreatedAt:  event.CreatedAt,
@@ -265,6 +268,7 @@ func (store *Store) ListAuditEvents(ctx context.Context, limit int) ([]AuditEven
 			Action:     record.Action,
 			Identifier: record.Identifier,
 			Status:     record.Status,
+			RequestID:  record.RequestID,
 			Source:     record.Source,
 			RemoteAddr: record.RemoteAddr,
 			CreatedAt:  record.CreatedAt,

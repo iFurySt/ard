@@ -133,6 +133,7 @@ bin/ardctl search browser --registry-url "${registry_url}" --kind skill --json |
 bin/ardctl admin audit --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-audit.json
 grep -q '"action":"entry.status"' /tmp/ard-e2e-audit.json
 grep -q '"identifier":"urn:air:github.com:skill:open-browser-use"' /tmp/ard-e2e-audit.json
+grep -q '"requestId":"' /tmp/ard-e2e-audit.json
 
 bin/ardctl admin remove urn:air:raw.githubusercontent.com:server:agentmemory-mcp \
   --registry-url "${registry_url}" \

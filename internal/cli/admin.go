@@ -69,10 +69,11 @@ func newAdminAuditCommand(options *adminOptions) *cobra.Command {
 			for _, event := range response.Items {
 				fmt.Fprintf(
 					cmd.OutOrStdout(),
-					"%-24s  %-14s  %-8s  %s\n",
+					"%-24s  %-14s  %-8s  %-36s  %s\n",
 					event.CreatedAt,
 					event.Action,
 					event.Status,
+					event.RequestID,
 					event.Identifier,
 				)
 			}
@@ -316,6 +317,7 @@ type storeAuditEvent struct {
 	Action     string `json:"action"`
 	Identifier string `json:"identifier,omitempty"`
 	Status     string `json:"status,omitempty"`
+	RequestID  string `json:"requestId,omitempty"`
 	CreatedAt  string `json:"createdAt"`
 }
 

@@ -228,6 +228,7 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 	)
 	statusRequest.Header.Set("Authorization", "Bearer test-token")
 	statusRequest.Header.Set("Content-Type", "application/json")
+	statusRequest.Header.Set("X-Request-ID", "disable-admin-weather")
 	statusResponse := httptest.NewRecorder()
 	router.ServeHTTP(statusResponse, statusRequest)
 	if statusResponse.Code != http.StatusOK {
@@ -292,6 +293,7 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 	)
 	statusRequest.Header.Set("Authorization", "Bearer test-token")
 	statusRequest.Header.Set("Content-Type", "application/json")
+	statusRequest.Header.Set("X-Request-ID", "activate-admin-weather")
 	statusResponse = httptest.NewRecorder()
 	router.ServeHTTP(statusResponse, statusRequest)
 	if statusResponse.Code != http.StatusOK {
@@ -335,11 +337,15 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 		t.Fatalf("decode audit: %v", err)
 	}
 	seen := map[string]bool{}
+	seenRequestID := false
 	for _, event := range audit.Items {
 		if event.Identifier == "urn:air:example.com:server:admin-weather" {
 			seen[event.Action] = true
 			if event.Action == "entry.status" && event.Status == "" {
 				t.Fatalf("expected status audit event to include status: %#v", event)
+			}
+			if event.Action == "entry.status" && event.RequestID == "activate-admin-weather" {
+				seenRequestID = true
 			}
 		}
 	}
@@ -347,5 +353,8 @@ func TestRouterAdminAPIWithPostgres(t *testing.T) {
 		if !seen[action] {
 			t.Fatalf("expected audit action %s, got %#v", action, audit.Items)
 		}
+	}
+	if !seenRequestID {
+		t.Fatalf("expected status audit event to include request id, got %#v", audit.Items)
 	}
 }

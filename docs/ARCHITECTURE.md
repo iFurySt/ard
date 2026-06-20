@@ -28,7 +28,11 @@ Cobra, Gin, GORM, and Postgres.
   of `active`, `pending`, or `disabled`. Public discovery, search, explore, and catalog
   export only expose `active` entries; admin list can include and filter all statuses.
 - Audit log: admin mutations append persisted events for upsert, status changes, and
-  deletion with action, identifier, status, source, remote address, and timestamp.
+  deletion with action, identifier, status, source, remote address, request ID, and
+  timestamp.
+- Request correlation: Gin middleware preserves or generates `X-Request-ID`, returns it
+  on every HTTP response, emits JSON access logs, and attaches request IDs to admin audit
+  events.
 - Artifact onboarding: `ard add mcp`, `ard add a2a`, `ard add skill`, and
   `ard add openapi` translate real MCP server cards, A2A agent cards, Skill markdown
   files, and OpenAPI documents into ARD catalog entries.

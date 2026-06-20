@@ -28,7 +28,7 @@ func NewRouterWithOptions(store *store.Store, options Options) *gin.Engine {
 	gin.SetMode(gin.ReleaseMode)
 	server := Server{store: store, adminToken: strings.TrimSpace(options.AdminToken)}
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(requestIDMiddleware(), jsonAccessLogMiddleware(), gin.Recovery())
 
 	router.GET("/health", server.health)
 	router.GET("/.well-known/ai-catalog.json", server.catalog)
@@ -385,6 +385,7 @@ func (server Server) recordAuditEvent(context *gin.Context, action string, ident
 		Action:     action,
 		Identifier: identifier,
 		Status:     status,
+		RequestID:  requestIDFromContext(context),
 		Source:     "admin-api",
 		RemoteAddr: context.ClientIP(),
 	})
