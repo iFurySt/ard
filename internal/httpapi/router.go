@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +22,7 @@ func NewRouter(store *store.Store) *gin.Engine {
 
 	router.GET("/health", server.health)
 	router.GET("/.well-known/ai-catalog.json", server.catalog)
+	router.GET("/agents", server.agents)
 	router.POST("/search", server.search)
 	router.POST("/explore", server.explore)
 	return router
@@ -90,11 +92,47 @@ func (server Server) search(context *gin.Context) {
 	context.JSON(http.StatusOK, ard.SearchResponse{Results: results})
 }
 
-func (server Server) explore(context *gin.Context) {
-	context.JSON(http.StatusNotImplemented, gin.H{
-		"errorCode": "NOT_IMPLEMENTED",
-		"message":   "Explore is not implemented",
+func (server Server) agents(context *gin.Context) {
+	limit, _ := strconv.Atoi(context.DefaultQuery("pageSize", "20"))
+	entries, total, err := server.store.List(context.Request.Context(), limit)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"errorCode": "INTERNAL_ERROR",
+			"message":   err.Error(),
+		})
+		return
+	}
+	context.JSON(http.StatusOK, ard.ListResponse{
+		Items: entries,
+		Total: int(total),
 	})
+}
+
+func (server Server) explore(context *gin.Context) {
+	var request ard.ExploreRequest
+	if err := context.ShouldBindJSON(&request); err != nil {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"errorCode": "INVALID_ARGUMENT",
+			"message":   err.Error(),
+		})
+		return
+	}
+	if len(request.ResultType.Facets) == 0 {
+		context.JSON(http.StatusBadRequest, gin.H{
+			"errorCode": "INVALID_ARGUMENT",
+			"message":   "resultType.facets is required",
+		})
+		return
+	}
+	response, err := server.store.Explore(context.Request.Context(), request)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"errorCode": "INTERNAL_ERROR",
+			"message":   err.Error(),
+		})
+		return
+	}
+	context.JSON(http.StatusOK, response)
 }
 
 func requestBaseURL(request *http.Request) string {

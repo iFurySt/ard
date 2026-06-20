@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -83,28 +84,8 @@ func (store *Store) UpsertCatalog(ctx context.Context, catalog ard.Catalog, sour
 
 func (store *Store) Search(ctx context.Context, request ard.SearchRequest, source string) ([]ard.SearchResult, error) {
 	limit := request.NormalizedPageSize()
-	query := store.db.WithContext(ctx).Model(&CatalogEntryRecord{}).Order("display_name ASC")
-	if source != "" {
-		query = query.Where("source = ?", source)
-	}
-	if request.Query.Text != "" {
-		terms := strings.Fields(strings.ToLower(request.Query.Text))
-		if len(terms) > 0 {
-			conditions := make([]string, 0, len(terms))
-			values := make([]any, 0, len(terms))
-			for _, term := range terms {
-				conditions = append(conditions, "search_text ILIKE ?")
-				values = append(values, "%"+term+"%")
-			}
-			query = query.Where(strings.Join(conditions, " OR "), values...)
-		}
-	}
-	if types := request.Query.Filter["type"]; len(types) > 0 {
-		query = query.Where("type IN ?", types)
-	}
-
-	var records []CatalogEntryRecord
-	if err := query.Limit(limit * 3).Find(&records).Error; err != nil {
+	records, err := store.matchingRecords(ctx, request.Query, source, limit*3)
+	if err != nil {
 		return nil, err
 	}
 
@@ -129,10 +110,89 @@ func (store *Store) Search(ctx context.Context, request ard.SearchRequest, sourc
 	return results, nil
 }
 
+func (store *Store) List(ctx context.Context, limit int) ([]ard.CatalogEntry, int64, error) {
+	if limit <= 0 || limit > 100 {
+		limit = 20
+	}
+	var total int64
+	if err := store.db.WithContext(ctx).Model(&CatalogEntryRecord{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var records []CatalogEntryRecord
+	if err := store.db.WithContext(ctx).Order("display_name ASC").Limit(limit).Find(&records).Error; err != nil {
+		return nil, 0, err
+	}
+	entries := make([]ard.CatalogEntry, 0, len(records))
+	for _, record := range records {
+		entry, err := record.ToCatalogEntry()
+		if err != nil {
+			return nil, 0, err
+		}
+		entries = append(entries, entry)
+	}
+	return entries, total, nil
+}
+
+func (store *Store) Explore(ctx context.Context, request ard.ExploreRequest) (ard.ExploreResponse, error) {
+	records, err := store.matchingRecords(ctx, request.Query, "", 0)
+	if err != nil {
+		return ard.ExploreResponse{}, err
+	}
+	entries := make([]ard.CatalogEntry, 0, len(records))
+	for _, record := range records {
+		entry, err := record.ToCatalogEntry()
+		if err != nil {
+			return ard.ExploreResponse{}, err
+		}
+		if matchesFilter(entry, request.Query.Filter) {
+			entries = append(entries, entry)
+		}
+	}
+
+	facets := make(map[string]ard.ExploreFacet, len(request.ResultType.Facets))
+	for _, facetRequest := range request.ResultType.Facets {
+		if facetRequest.Field == "" {
+			continue
+		}
+		facets[facetRequest.Field] = buildFacet(entries, facetRequest)
+	}
+	return ard.ExploreResponse{ResultType: "facets", Facets: facets}, nil
+}
+
 func (store *Store) Count(ctx context.Context) (int64, error) {
 	var count int64
 	err := store.db.WithContext(ctx).Model(&CatalogEntryRecord{}).Count(&count).Error
 	return count, err
+}
+
+func (store *Store) matchingRecords(ctx context.Context, searchQuery ard.SearchQuery, source string, limit int) ([]CatalogEntryRecord, error) {
+	query := store.db.WithContext(ctx).Model(&CatalogEntryRecord{}).Order("display_name ASC")
+	if source != "" {
+		query = query.Where("source = ?", source)
+	}
+	if searchQuery.Text != "" {
+		terms := strings.Fields(strings.ToLower(searchQuery.Text))
+		if len(terms) > 0 {
+			conditions := make([]string, 0, len(terms))
+			values := make([]any, 0, len(terms))
+			for _, term := range terms {
+				conditions = append(conditions, "search_text ILIKE ?")
+				values = append(values, "%"+term+"%")
+			}
+			query = query.Where(strings.Join(conditions, " OR "), values...)
+		}
+	}
+	if types := searchQuery.Filter["type"]; len(types) > 0 {
+		query = query.Where("type IN ?", types)
+	}
+	if limit > 0 {
+		query = query.Limit(limit)
+	}
+	var records []CatalogEntryRecord
+	if err := query.Find(&records).Error; err != nil {
+		return nil, err
+	}
+	return records, nil
 }
 
 func recordFromEntry(entry ard.CatalogEntry, source string) (CatalogEntryRecord, error) {
@@ -297,6 +357,67 @@ func intersects(expected []string, actual []string) bool {
 		}
 	}
 	return false
+}
+
+func buildFacet(entries []ard.CatalogEntry, request ard.ExploreFacetRequest) ard.ExploreFacet {
+	limit := request.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	minCount := request.MinCount
+	if minCount <= 0 {
+		minCount = 1
+	}
+
+	counts := map[string]int{}
+	for _, entry := range entries {
+		for _, value := range facetValues(entry, request.Field) {
+			counts[value]++
+		}
+	}
+
+	buckets := make([]ard.ExploreFacetBucket, 0, len(counts))
+	for value, count := range counts {
+		if count >= minCount {
+			buckets = append(buckets, ard.ExploreFacetBucket{Value: value, Count: count})
+		}
+	}
+	sort.Slice(buckets, func(left int, right int) bool {
+		if buckets[left].Count == buckets[right].Count {
+			return buckets[left].Value < buckets[right].Value
+		}
+		return buckets[left].Count > buckets[right].Count
+	})
+
+	otherCount := 0
+	if len(buckets) > limit {
+		for _, bucket := range buckets[limit:] {
+			otherCount += bucket.Count
+		}
+		buckets = buckets[:limit]
+	}
+	return ard.ExploreFacet{Buckets: buckets, OtherCount: otherCount}
+}
+
+func facetValues(entry ard.CatalogEntry, field string) []string {
+	switch field {
+	case "type":
+		return []string{entry.Type}
+	case "publisher":
+		return []string{ard.Publisher(entry.Identifier)}
+	case "tags":
+		return entry.Tags
+	case "capabilities":
+		return entry.Capabilities
+	default:
+		if strings.HasPrefix(field, "metadata.") {
+			key := strings.TrimPrefix(field, "metadata.")
+			if value, ok := entry.Metadata[key].(string); ok {
+				return []string{value}
+			}
+		}
+		return nil
+	}
 }
 
 func FormatCatalogImport(count int, source string) string {

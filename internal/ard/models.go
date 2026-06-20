@@ -77,6 +77,42 @@ type SearchResponse struct {
 	PageToken string         `json:"pageToken,omitempty"`
 }
 
+type ExploreRequest struct {
+	Query      SearchQuery       `json:"query,omitempty"`
+	ResultType ExploreResultType `json:"resultType"`
+}
+
+type ExploreResultType struct {
+	Facets []ExploreFacetRequest `json:"facets"`
+}
+
+type ExploreFacetRequest struct {
+	Field    string `json:"field"`
+	Limit    int    `json:"limit,omitempty"`
+	MinCount int    `json:"minCount,omitempty"`
+}
+
+type ExploreResponse struct {
+	ResultType string                  `json:"resultType"`
+	Facets     map[string]ExploreFacet `json:"facets"`
+}
+
+type ExploreFacet struct {
+	Buckets    []ExploreFacetBucket `json:"buckets"`
+	OtherCount int                  `json:"otherCount,omitempty"`
+}
+
+type ExploreFacetBucket struct {
+	Value string `json:"value"`
+	Count int    `json:"count"`
+}
+
+type ListResponse struct {
+	Items     []CatalogEntry `json:"items"`
+	Total     int            `json:"total,omitempty"`
+	PageToken string         `json:"pageToken,omitempty"`
+}
+
 func (filter *Filter) UnmarshalJSON(data []byte) error {
 	if bytes.Equal(data, []byte("null")) {
 		*filter = nil

@@ -92,9 +92,8 @@ boundary without changing HTTP contracts.
 - `GET /.well-known/ai-catalog.json`: advertise this registry and any configured catalog
   entries. Implemented.
 - `POST /search`: ARD search endpoint. Implemented.
-- `POST /explore`: optional; currently returns `501 Not Implemented`.
-- `GET /agents`: optional deterministic browse endpoint; useful for B2B portals but not
-  implemented yet.
+- `POST /explore`: optional; implemented for local facet aggregation.
+- `GET /agents`: optional deterministic browse endpoint; implemented for basic listing.
 - `GET /health`: deployment health. Implemented.
 - CLI equivalents: `serve`, `add catalog`, `crawl`, `verify catalog`, and `search` are
   implemented; `export` is planned.
