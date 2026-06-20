@@ -47,9 +47,14 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
   schema values: `spiffe`, `did`, `https`, and `other`.
 - Implemented: URL `trustManifest.identity` host must match the `urn:air:` publisher
   domain.
+- Implemented: `trustManifest.attestations` structure validation for required fields,
+  absolute `uri` values, and optional `digest` format.
+- Implemented: `trustManifest.provenance` structure validation for required fields,
+  supported relation values, and optional `sourceDigest` format.
 - Implemented: `trustManifest.sourceDigest` type and format validation.
 - Implemented: URL artifact source digest verification.
 - Implemented: admin audit event hash chaining and chain verification.
+- Not implemented yet: attestation document fetch or content verification.
 - Not implemented yet: detached JWS signature verification.
 - Not implemented yet: DID, SPIFFE, certificate, or key resolution.
 - Not implemented yet: externally anchored or signed audit trails.

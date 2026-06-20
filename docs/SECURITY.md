@@ -40,11 +40,15 @@ Use this document to make secure defaults explicit and legible to agents.
 - `--pin-source-digest` can add `trustManifest.sourceDigest` for URL artifacts.
 - `trustManifest.identityType`, when present, must be one of the ARD schema values:
   `spiffe`, `did`, `https`, or `other`.
+- `trustManifest.attestations` and `trustManifest.provenance`, when present, are
+  validated for required fields, enum values, absolute attestation URIs, and digest
+  formats.
 - HTTP(S) `trustManifest.identity` hosts must match the `urn:air:` publisher domain.
 - `ard verify catalog --source-digests` fetches URL artifacts and verifies pinned
   `sha256` source digests.
 - Source digest verification proves byte integrity for the fetched URL only. It does not
-  prove publisher identity, signature validity, runtime safety, or compliance status.
+  prove publisher identity, attestation truth, signature validity, runtime safety, or
+  compliance status.
 - Detailed trust behavior is in `docs/TRUST.md`.
 
 ## Audit Events
@@ -103,6 +107,7 @@ Use this document to make secure defaults explicit and legible to agents.
   is still static until restart.
 - No externally anchored or signed audit log yet.
 - No signed policy bundle or external policy engine yet.
+- No attestation document fetch or content verification yet.
 - No detached signature, DID, SPIFFE, certificate, or key-resolution verification yet.
 
 ## Scope

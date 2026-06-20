@@ -70,9 +70,10 @@ Cobra, Gin, GORM, and Postgres.
   files, and OpenAPI documents into ARD catalog entries.
 - Verification engine: schema-level checks cover `urn:air:`, required fields,
   `url`/`data` exclusivity, URL syntax, representative query count, and minimal
-  `trustManifest` structure, including `identityType` enum validation and URL identity
-  host alignment with the `urn:air:` publisher. URL artifacts can be pinned and verified
-  with `trustManifest.sourceDigest`.
+  `trustManifest` structure, including `identityType` enum validation,
+  attestation/provenance structure validation, and URL identity host alignment with the
+  `urn:air:` publisher. URL artifacts can be pinned and verified with
+  `trustManifest.sourceDigest`.
 
 ## Intended Repository Shape
 

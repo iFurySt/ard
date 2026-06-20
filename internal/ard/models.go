@@ -28,6 +28,11 @@ var supportedTrustIdentityTypes = map[string]struct{}{
 	"https":  {},
 	"other":  {},
 }
+var supportedTrustProvenanceRelations = map[string]struct{}{
+	"derivedFrom":   {},
+	"publishedFrom": {},
+	"copiedFrom":    {},
+}
 
 type Catalog struct {
 	SpecVersion string         `json:"specVersion"`
@@ -252,6 +257,122 @@ func validateTrustManifest(identifier string, trustManifest map[string]any) erro
 		if sourceDigestString != "" && !sha256DigestPattern.MatchString(sourceDigestString) {
 			return errors.New("trustManifest.sourceDigest must match sha256:<64 hex chars>")
 		}
+	}
+	if attestations, ok := trustManifest["attestations"]; ok {
+		if err := validateTrustAttestations(attestations); err != nil {
+			return err
+		}
+	}
+	if provenance, ok := trustManifest["provenance"]; ok {
+		if err := validateTrustProvenance(provenance); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateTrustAttestations(value any) error {
+	attestations, err := trustObjectList(value, "trustManifest.attestations")
+	if err != nil {
+		return err
+	}
+	for index, attestation := range attestations {
+		path := fmt.Sprintf("trustManifest.attestations[%d]", index)
+		if _, err := requiredTrustString(attestation, "type", path); err != nil {
+			return err
+		}
+		if uri, err := requiredTrustString(attestation, "uri", path); err != nil {
+			return err
+		} else if err := validateAbsoluteURI(uri); err != nil {
+			return fmt.Errorf("%s.uri is invalid: %w", path, err)
+		}
+		if _, err := requiredTrustString(attestation, "mediaType", path); err != nil {
+			return err
+		}
+		if digest, ok, err := optionalTrustString(attestation, "digest", path); err != nil {
+			return err
+		} else if ok && digest != "" && !sha256DigestPattern.MatchString(digest) {
+			return fmt.Errorf("%s.digest must match sha256:<64 hex chars>", path)
+		}
+	}
+	return nil
+}
+
+func validateTrustProvenance(value any) error {
+	provenance, err := trustObjectList(value, "trustManifest.provenance")
+	if err != nil {
+		return err
+	}
+	for index, link := range provenance {
+		path := fmt.Sprintf("trustManifest.provenance[%d]", index)
+		relation, err := requiredTrustString(link, "relation", path)
+		if err != nil {
+			return err
+		}
+		if _, ok := supportedTrustProvenanceRelations[relation]; !ok {
+			return fmt.Errorf("%s.relation must be one of derivedFrom, publishedFrom, copiedFrom", path)
+		}
+		if _, err := requiredTrustString(link, "sourceId", path); err != nil {
+			return err
+		}
+		if digest, ok, err := optionalTrustString(link, "sourceDigest", path); err != nil {
+			return err
+		} else if ok && digest != "" && !sha256DigestPattern.MatchString(digest) {
+			return fmt.Errorf("%s.sourceDigest must match sha256:<64 hex chars>", path)
+		}
+	}
+	return nil
+}
+
+func trustObjectList(value any, path string) ([]map[string]any, error) {
+	switch items := value.(type) {
+	case []any:
+		objects := make([]map[string]any, 0, len(items))
+		for index, item := range items {
+			object, ok := item.(map[string]any)
+			if !ok {
+				return nil, fmt.Errorf("%s[%d] must be an object", path, index)
+			}
+			objects = append(objects, object)
+		}
+		return objects, nil
+	case []map[string]any:
+		return items, nil
+	default:
+		return nil, fmt.Errorf("%s must be an array", path)
+	}
+}
+
+func requiredTrustString(object map[string]any, field string, path string) (string, error) {
+	value, ok, err := optionalTrustString(object, field, path)
+	if err != nil {
+		return "", err
+	}
+	if !ok || value == "" {
+		return "", fmt.Errorf("%s.%s is required", path, field)
+	}
+	return value, nil
+}
+
+func optionalTrustString(object map[string]any, field string, path string) (string, bool, error) {
+	value, ok := object[field]
+	if !ok {
+		return "", false, nil
+	}
+	valueString, ok := value.(string)
+	if !ok {
+		return "", true, fmt.Errorf("%s.%s must be a string", path, field)
+	}
+	return strings.TrimSpace(valueString), true, nil
+}
+
+func validateAbsoluteURI(value string) error {
+	parsed, err := url.Parse(value)
+	if err != nil {
+		return err
+	}
+	if parsed.Scheme == "" {
+		return errors.New("scheme is required")
 	}
 	return nil
 }
