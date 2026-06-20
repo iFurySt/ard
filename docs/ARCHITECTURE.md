@@ -7,11 +7,14 @@ Cobra, Gin, GORM, and Postgres.
 
 - Registry server: self-hosted ARD registry exposing discovery, search, health, and
   catalog endpoints through Gin.
-- CLI: Cobra operational entry point for `serve`, `add catalog`, `crawl`, `verify
-  catalog`, and `search` today; export flows remain planned.
+- CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
+  `add skill`, `crawl`, `verify catalog`, and `search` today; export flows remain
+  planned.
 - Client flow: `ard search` sends spec-shaped `SearchRequest` bodies to a registry.
 - Catalog ingestion: `ard add catalog` loads local or remote `ai-catalog.json` files,
   validates them, and persists entries.
+- Artifact onboarding: `ard add mcp`, `ard add a2a`, and `ard add skill` translate real
+  MCP server cards, A2A agent cards, and Skill markdown files into ARD catalog entries.
 - Verification engine: initial schema-level checks cover `urn:air:`, required fields,
   `url`/`data` exclusivity, URL syntax, and representative query count.
 
@@ -21,6 +24,7 @@ Cobra, Gin, GORM, and Postgres.
 - `internal/cli/`: Cobra command tree.
 - `internal/httpapi/`: Gin router and HTTP handlers.
 - `internal/ard/`: ARD models, media type constants, filters, and validation.
+- `internal/adapters/`: artifact-to-catalog-entry adapters for MCP, A2A, and Skills.
 - `internal/catalog/`: local and HTTP catalog loading.
 - `internal/store/`: GORM/Postgres persistence and search.
 - `internal/config/`: environment and CLI config helpers.
@@ -95,8 +99,8 @@ boundary without changing HTTP contracts.
 - `POST /explore`: optional; implemented for local facet aggregation.
 - `GET /agents`: optional deterministic browse endpoint; implemented for basic listing.
 - `GET /health`: deployment health. Implemented.
-- CLI equivalents: `serve`, `add catalog`, `crawl`, `verify catalog`, and `search` are
-  implemented; `export` is planned.
+- CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`, `crawl`,
+  `verify catalog`, and `search` are implemented; `export` is planned.
 
 ## Specification Alignment
 

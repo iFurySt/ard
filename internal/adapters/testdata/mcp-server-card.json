@@ -1,0 +1,14 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "space.agentmemory/agentmemory-mcp",
+  "title": "Agentmemory MCP",
+  "description": "Paid remote MCP for persistent AI agent memory, analytics, checkout, and search-readiness.",
+  "version": "0.1.0",
+  "websiteUrl": "https://agentmemory.space/",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://agentmemory.space/mcp"
+    }
+  ]
+}

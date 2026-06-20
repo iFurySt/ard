@@ -23,9 +23,11 @@ found.
 ard serve
 ard add catalog https://example.com/.well-known/ai-catalog.json
 ard add mcp https://example.com/mcp/server.json
+ard add a2a https://example.com/.well-known/agent-card.json
+ard add skill https://example.com/skills/open-browser-use/SKILL.md
 ard crawl
 ard search "query observability logs" --kind mcp
-ard verify https://example.com/.well-known/ai-catalog.json
+ard verify catalog https://example.com/.well-known/ai-catalog.json
 ```
 
 ## Try It
@@ -35,6 +37,9 @@ make build
 make test-integration
 
 bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/acme-ai-catalog.json
+bin/ard --database-url "$DATABASE_URL" add mcp ./internal/adapters/testdata/mcp-server-card.json
+bin/ard --database-url "$DATABASE_URL" add a2a ./internal/adapters/testdata/a2a-agent-card.json
+bin/ard --database-url "$DATABASE_URL" add skill ./internal/adapters/testdata/open-browser-use/SKILL.md
 bin/ard verify catalog ./internal/catalog/testdata/acme-ai-catalog.json
 bin/ard --database-url "$DATABASE_URL" crawl https://example.com/
 bin/ard --database-url "$DATABASE_URL" serve
@@ -45,7 +50,8 @@ bin/ard search "weather forecast" --kind mcp --json
 
 This repository is in early implementation. Current milestones include a Go CLI,
 Gin-based registry server, GORM/Postgres persistence, catalog import, well-known catalog
-crawl, catalog verification, ARD search, browse, and explore facets.
+crawl, MCP/A2A/Skill artifact onboarding, catalog verification, ARD search, browse, and
+explore facets.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including

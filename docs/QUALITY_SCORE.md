@@ -9,12 +9,12 @@ Track quality by product area and architectural layer so agents can prioritize t
 - `C`: works but needs targeted hardening.
 - `D`: fragile or underspecified.
 
-## Initial Template
+## Current Snapshot
 
 | Area | Score | Why | Next Step |
 | --- | --- | --- | --- |
-| Product surface | D | Not yet defined. | Define the first user journey and acceptance criteria. |
-| Architecture docs | C | Base scaffold exists but needs project-specific content. | Fill in `docs/ARCHITECTURE.md`. |
-| Testing | D | No stack-specific tests yet. | Add a minimal smoke path with one real command. |
-| Observability | D | No local stack or conventions yet. | Document logs, metrics, traces, local access, and future pipeline access. |
-| Security | C | Defaults are documented, implementation is pending. | Add real auth, secret, and dependency rules. |
+| Product surface | C | CLI and registry can import catalogs, crawl well-known catalogs, onboard MCP/A2A/Skill artifacts, search, browse, and explore. Policy, export, and richer governance flows are still missing. | Define the first enterprise registry workflow end to end, including publish/update/remove and approval states. |
+| Architecture docs | B | `docs/ARCHITECTURE.md` now describes the Go/Cobra/Gin/GORM/Postgres stack and package boundaries. | Keep adapter, API, and storage decisions updated as public SDK boundaries emerge. |
+| Testing | C | Unit tests, Postgres integration tests, build checks, and upstream ARD conformance runs cover core ingestion/search paths. | Add repeatable E2E scripts for artifact onboarding with pinned real MCP/A2A/Skill fixtures. |
+| Observability | D | Health check exists, but structured logs, metrics, traces, and operational dashboards are not implemented. | Add request logging and a documented local observability workflow. |
+| Security | C | Validation enforces `urn:air:`, value/reference exclusivity, URLs, and basic catalog shape. Auth, authorization, signatures, and trust manifest verification are still pending. | Add registry auth and trust verification design before exposing write APIs beyond local CLI use. |
