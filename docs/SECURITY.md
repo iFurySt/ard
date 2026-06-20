@@ -51,6 +51,9 @@ Use this document to make secure defaults explicit and legible to agents.
 - `trustManifest.attestations` and `trustManifest.provenance`, when present, are
   validated for required fields, enum values, absolute attestation URIs, and digest
   formats.
+- Unknown fields are rejected from `trustManifest`, `trustManifest.trustSchema`,
+  attestation items, and provenance items, except for the documented
+  `trustManifest.sourceDigest` implementation extension.
 - Entry HTTP(S) `trustManifest.identity` hosts must match the `urn:air:` publisher
   domain.
 - `ard verify catalog --source-digests` fetches URL artifacts and verifies pinned

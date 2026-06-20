@@ -61,6 +61,9 @@ When `--source-digests` is enabled, `ard` fetches each URL entry that has
 - Implemented: `trustManifest.provenance` structure validation for required fields,
   supported relation values, and optional `sourceDigest` format.
 - Implemented: `trustManifest.sourceDigest` type and format validation.
+- Implemented: schema-aligned known-field validation for `trustManifest`,
+  `trustManifest.trustSchema`, attestation items, and provenance items. The only
+  accepted top-level extension is `trustManifest.sourceDigest`.
 - Implemented: URL artifact source digest verification.
 - Implemented: admin audit event hash chaining and chain verification.
 - Not implemented yet: attestation document fetch or content verification.

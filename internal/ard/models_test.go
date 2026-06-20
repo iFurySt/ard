@@ -276,6 +276,32 @@ func TestValidateCatalogEntryTrustManifestSourceDigestType(t *testing.T) {
 	}
 }
 
+func TestValidateCatalogEntryTrustManifestRejectsUnknownFields(t *testing.T) {
+	entry := CatalogEntry{
+		Identifier:  "urn:air:acme.com:server:weather",
+		DisplayName: "Weather Data Node",
+		Type:        TypeMCPServerCard,
+		URL:         "https://api.acme.com/mcp/weather.json",
+		TrustManifest: map[string]any{
+			"identity":     "https://acme.com/security",
+			"expiresAt":    "2026-12-31T00:00:00Z",
+			"sourceDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		},
+	}
+	err := ValidateCatalogEntry(entry)
+	if err == nil {
+		t.Fatal("expected unknown trustManifest field to be rejected")
+	}
+	if !strings.Contains(err.Error(), `trustManifest contains unsupported field "expiresAt"`) {
+		t.Fatalf("expected unknown trustManifest field error, got %v", err)
+	}
+
+	delete(entry.TrustManifest, "expiresAt")
+	if err := ValidateCatalogEntry(entry); err != nil {
+		t.Fatalf("expected sourceDigest implementation extension to remain accepted: %v", err)
+	}
+}
+
 func TestValidateCatalogEntryTrustManifestTrustSchema(t *testing.T) {
 	entry := CatalogEntry{
 		Identifier:  "urn:air:acme.com:server:weather",
@@ -319,6 +345,12 @@ func TestValidateCatalogEntryTrustManifestTrustSchema(t *testing.T) {
 	entry.TrustManifest["signature"] = 42
 	if err := ValidateCatalogEntry(entry); err == nil {
 		t.Fatal("expected non-string signature to be rejected")
+	}
+
+	entry.TrustManifest["signature"] = "detached-jws-placeholder"
+	schema["issuer"] = "acme-security"
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected unknown trustSchema field to be rejected")
 	}
 }
 
@@ -377,6 +409,18 @@ func TestValidateCatalogEntryTrustManifestAttestations(t *testing.T) {
 	if err := ValidateCatalogEntry(entry); err == nil {
 		t.Fatal("expected invalid attestation digest to be rejected")
 	}
+
+	entry.TrustManifest["attestations"] = []any{
+		map[string]any{
+			"type":      "SOC2-Type2",
+			"uri":       "https://acme.com/audits/soc2.pdf",
+			"mediaType": "application/pdf",
+			"issuer":    "acme-security",
+		},
+	}
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected unknown attestation field to be rejected")
+	}
 }
 
 func TestValidateCatalogEntryTrustManifestProvenance(t *testing.T) {
@@ -429,6 +473,17 @@ func TestValidateCatalogEntryTrustManifestProvenance(t *testing.T) {
 	}
 	if err := ValidateCatalogEntry(entry); err == nil {
 		t.Fatal("expected invalid provenance sourceDigest to be rejected")
+	}
+
+	entry.TrustManifest["provenance"] = []any{
+		map[string]any{
+			"relation":  "publishedFrom",
+			"sourceId":  "urn:air:acme.com:source:weather-card",
+			"timestamp": "2026-06-21T03:00:00Z",
+		},
+	}
+	if err := ValidateCatalogEntry(entry); err == nil {
+		t.Fatal("expected unknown provenance field to be rejected")
 	}
 }
 

@@ -72,9 +72,9 @@ Cobra, Gin, GORM, and Postgres.
   `url`/`data` exclusivity, absolute HTTP(S) URL syntax, `updatedAt` date-time format,
   scalar metadata values, representative query count, duplicate catalog identifiers, and
   minimal catalog host metadata plus `trustManifest` structure, including `identityType`
-  enum validation, `trustSchema`/signature shape validation, attestation/provenance
-  structure validation, and URL identity host alignment with the `urn:air:` publisher.
-  URL artifacts can be pinned and verified with
+  enum validation, schema-aligned known-field enforcement, `trustSchema`/signature shape
+  validation, attestation/provenance structure validation, and URL identity host
+  alignment with the `urn:air:` publisher. URL artifacts can be pinned and verified with
   `trustManifest.sourceDigest`.
 
 ## Intended Repository Shape
@@ -217,7 +217,8 @@ conformance tool over older reference implementations. In particular:
   `application/openapi+json` until upstream ARD standardizes an OpenAPI discovery media
   type.
 - Treat `trustManifest.sourceDigest` as source artifact integrity metadata. It verifies
-  bytes fetched from the entry URL; it is not a signature or identity proof.
+  bytes fetched from the entry URL; it is not a signature or identity proof. This is an
+  implementation extension to the ARD `trustManifest` schema.
 - Treat HTTP(S) `trustManifest.identity` host matching as catalog metadata consistency,
   not as proof of publisher ownership.
 - Keep `score` strictly as semantic relevance, not a trust or safety signal.

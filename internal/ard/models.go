@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/url"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 )
@@ -33,6 +34,32 @@ var supportedTrustProvenanceRelations = map[string]struct{}{
 	"derivedFrom":   {},
 	"publishedFrom": {},
 	"copiedFrom":    {},
+}
+var allowedTrustManifestFields = map[string]struct{}{
+	"identity":     {},
+	"identityType": {},
+	"trustSchema":  {},
+	"attestations": {},
+	"provenance":   {},
+	"signature":    {},
+	"sourceDigest": {},
+}
+var allowedTrustSchemaFields = map[string]struct{}{
+	"identifier":          {},
+	"version":             {},
+	"governanceUri":       {},
+	"verificationMethods": {},
+}
+var allowedTrustAttestationFields = map[string]struct{}{
+	"type":      {},
+	"uri":       {},
+	"mediaType": {},
+	"digest":    {},
+}
+var allowedTrustProvenanceFields = map[string]struct{}{
+	"relation":     {},
+	"sourceId":     {},
+	"sourceDigest": {},
 }
 
 type Catalog struct {
@@ -278,6 +305,9 @@ func validateTrustManifest(identifier string, trustManifest map[string]any) erro
 	if trustManifest == nil {
 		return nil
 	}
+	if err := validateKnownFields(trustManifest, allowedTrustManifestFields, "trustManifest"); err != nil {
+		return err
+	}
 	identity, ok := trustManifest["identity"].(string)
 	identity = strings.TrimSpace(identity)
 	if !ok || identity == "" {
@@ -342,6 +372,9 @@ func validateTrustSchema(value any) error {
 		return errors.New("trustManifest.trustSchema must be an object")
 	}
 	path := "trustManifest.trustSchema"
+	if err := validateKnownFields(schema, allowedTrustSchemaFields, path); err != nil {
+		return err
+	}
 	if _, err := requiredTrustString(schema, "identifier", path); err != nil {
 		return err
 	}
@@ -370,6 +403,9 @@ func validateTrustAttestations(value any) error {
 	}
 	for index, attestation := range attestations {
 		path := fmt.Sprintf("trustManifest.attestations[%d]", index)
+		if err := validateKnownFields(attestation, allowedTrustAttestationFields, path); err != nil {
+			return err
+		}
 		if _, err := requiredTrustString(attestation, "type", path); err != nil {
 			return err
 		}
@@ -397,6 +433,9 @@ func validateTrustProvenance(value any) error {
 	}
 	for index, link := range provenance {
 		path := fmt.Sprintf("trustManifest.provenance[%d]", index)
+		if err := validateKnownFields(link, allowedTrustProvenanceFields, path); err != nil {
+			return err
+		}
 		relation, err := requiredTrustString(link, "relation", path)
 		if err != nil {
 			return err
@@ -414,6 +453,20 @@ func validateTrustProvenance(value any) error {
 		}
 	}
 	return nil
+}
+
+func validateKnownFields(object map[string]any, allowed map[string]struct{}, path string) error {
+	unknown := []string{}
+	for field := range object {
+		if _, ok := allowed[field]; !ok {
+			unknown = append(unknown, field)
+		}
+	}
+	if len(unknown) == 0 {
+		return nil
+	}
+	sort.Strings(unknown)
+	return fmt.Errorf("%s contains unsupported field %q", path, unknown[0])
 }
 
 func trustObjectList(value any, path string) ([]map[string]any, error) {
