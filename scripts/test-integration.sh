@@ -2,7 +2,7 @@
 set -euo pipefail
 
 if [ -n "${ARD_TEST_DATABASE_URL:-}" ]; then
-  go test ./...
+  go test -p 1 ./...
   exit 0
 fi
 
@@ -26,7 +26,7 @@ docker run \
 
 for _ in $(seq 1 60); do
   if docker exec "${container_name}" pg_isready -U ard -d ard_test >/dev/null 2>&1; then
-    ARD_TEST_DATABASE_URL="${database_url}" go test ./...
+    ARD_TEST_DATABASE_URL="${database_url}" go test -p 1 ./...
     exit 0
   fi
   sleep 1
