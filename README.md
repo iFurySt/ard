@@ -134,8 +134,9 @@ ID across remote artifact fetches and admin API calls.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. `make package` creates Linux/macOS
 release archives with an SPDX SBOM and SHA-256 checksums. CI runs formatting checks,
-tests, public Go client import checks, builds, release packaging, and Postgres
-integration tests.
+workflow checks, tests, public Go client import checks, builds, release packaging, and
+Postgres integration tests. Pushing a `v*` tag runs the release workflow, publishes the
+release archives, and generates GitHub artifact attestations for provenance plus SBOM.
 `make test-e2e` runs the real artifact onboarding flow with live MCP, Skill, OpenAPI,
 policy-gate examples, a local upstream registry for auto federation, and an external
 Go admin SDK check against the live registry.

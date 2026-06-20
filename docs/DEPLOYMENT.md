@@ -38,6 +38,28 @@ Useful overrides:
 VERSION=v0.1.0 PLATFORMS='linux/amd64 darwin/arm64' make package
 ```
 
+## Release Publishing
+
+Push a `v*` tag to publish a GitHub release:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The release workflow packages the binaries with `VERSION` set to the tag name, verifies
+`dist/checksums.txt`, generates GitHub artifact attestations for release provenance and
+the SPDX SBOM, and uploads the `dist/` artifacts to the GitHub release.
+
+Consumers can verify a downloaded archive with:
+
+```sh
+shasum -a 256 -c checksums.txt
+gh attestation verify ./ard_v0.1.0_linux_amd64.tar.gz -R iFurySt/ard
+gh attestation verify ./ard_v0.1.0_linux_amd64.tar.gz -R iFurySt/ard \
+  --predicate-type https://spdx.dev/Document/v2.3
+```
+
 Run the server against Postgres:
 
 ```sh
@@ -101,5 +123,5 @@ then removes the compose stack and volume.
   reviewed configuration.
 - Rotate role token files with an atomic write-and-rename so the server sees complete
   JSON. Invalid updates are ignored and the last valid token set remains active.
-- Binary release archives include an SPDX SBOM and SHA-256 checksums. Release publishing
-  and signed provenance are still future supply-chain work.
+- Binary release archives include an SPDX SBOM and SHA-256 checksums. Tagged GitHub
+  releases generate signed provenance and SBOM attestations.

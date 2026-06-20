@@ -45,9 +45,11 @@ This document defines the default collaboration model for an agent-first reposit
 - `make package` builds versioned Linux/macOS binary archives for all entrypoints and
   writes an SPDX SBOM plus SHA-256 checksums under `dist/`; CI runs it as a release
   packaging gate.
-- Release publishing is not automated yet. Local container, binary archive, and checksum
-  workflows are documented in `docs/DEPLOYMENT.md`; when publishing automation is added,
-  document the release artifacts and operational assumptions in the same change.
+- `make check-workflows` validates expected CI and release workflow invariants.
+- Pushing a `v*` tag runs the release workflow, publishes `dist/` artifacts to GitHub
+  Releases, and generates signed GitHub artifact attestations for provenance plus SBOM.
+  Local container, binary archive, checksum, and release workflows are documented in
+  `docs/DEPLOYMENT.md`.
 
 ## Configuration Hygiene
 

@@ -1,7 +1,7 @@
 PROJECT ?=
 SLUG ?=
 
-.PHONY: init new-history new-plan fmt fmt-check test test-public-go-client test-integration test-e2e test-compose build sbom package docker-build
+.PHONY: init new-history new-plan fmt fmt-check check-workflows test test-public-go-client test-integration test-e2e test-compose build sbom package docker-build
 
 init:
 	@if [ -z "$(PROJECT)" ]; then echo "usage: make init PROJECT=my-project"; exit 1; fi
@@ -20,6 +20,9 @@ fmt:
 
 fmt-check:
 	./scripts/check-fmt.sh
+
+check-workflows:
+	go run ./internal/tools/workflowcheck
 
 test:
 	go test ./...

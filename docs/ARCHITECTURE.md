@@ -23,6 +23,9 @@ Cobra, Gin, GORM, and Postgres.
 - Binary distribution: `make package` produces versioned Linux/macOS amd64/arm64
   archives for `ard`, `ardctl`, and `ard-server`, plus an SPDX SBOM and SHA-256 checksum
   manifest.
+- Release publishing: pushing a `v*` tag runs the GitHub Actions release workflow, checks
+  package checksums, generates signed GitHub artifact attestations for release
+  provenance and SBOM, and publishes the `dist/` artifacts to a GitHub release.
 - Client flow: `ard search` and the public Go client send spec-shaped `SearchRequest`
   bodies to a registry. The registry rejects unknown request/query fields, missing
   `query.text`, and unsupported `federation` values instead of silently normalizing
@@ -118,6 +121,8 @@ Cobra, Gin, GORM, and Postgres.
 - `internal/config/`: environment and CLI config helpers.
 - `internal/tools/sbom/`: repository-native SPDX SBOM generator used by release
   packaging.
+- `internal/tools/workflowcheck/`: repository-native GitHub Actions workflow guard for
+  CI and release automation invariants.
 - `pkg/ard/`: public ARD model aliases and validation helpers for Go consumers.
 - `pkg/client/`: public HTTP client for unauthenticated registry discovery surfaces and
   token-protected admin management routes.

@@ -41,6 +41,9 @@ jobs:
       - name: Check formatting
         run: make fmt-check
 
+      - name: Check workflows
+        run: make check-workflows
+
       - name: Test
         run: make test
 

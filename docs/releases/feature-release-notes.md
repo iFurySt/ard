@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Release | Release consumers can verify where tagged archives and SBOMs came from. | Added a `v*` tag release workflow that packages artifacts, verifies checksums, publishes GitHub releases, and generates signed GitHub artifact attestations for provenance plus SBOM; added workflow invariant checks to CI. |
 | 2026-06-21 | Release | Operators can inspect Go module dependencies before adopting a release artifact. | Added a repository-native SPDX 2.3 SBOM generator, `make sbom`, and `dist/sbom.spdx.json` output from `make package`, with the SBOM included in SHA-256 checksums. |
 | 2026-06-21 | Release | Operators can fetch and verify versioned binary archives instead of building only from source. | Added `make package` to build Linux/macOS amd64/arm64 archives for `ard`, `ardctl`, and `ard-server`, generate SHA-256 checksums, and run release packaging in CI. |
 | 2026-06-21 | SDK | Go consumers can see which import paths and behaviors are intended to be stable before adopting the SDK. | Added `docs/SDK_COMPATIBILITY.md`, package documentation for `pkg/ard` and `pkg/client`, README guidance, and repository routing for SDK compatibility expectations. |
