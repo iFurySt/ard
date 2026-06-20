@@ -13,18 +13,19 @@ The remaining defaults are:
 - Pin new GitHub Actions to immutable commit SHAs instead of floating tags.
 - `make package` produces explicit versioned binary archives and SHA-256 checksums under
   `dist/`.
+- `make sbom` and `make package` produce `dist/sbom.spdx.json`, an SPDX 2.3 SBOM for the
+  Go module dependency graph.
 
 ## Tooling To Add Later
 
 - `actions/dependency-review-action`: reviews pull-request dependency changes.
 - `google/osv-scanner-action`: scans for known open source vulnerabilities.
-- `anchore/sbom-action`: generates an SPDX SBOM artifact.
 - `actions/attest-build-provenance`: generates signed build provenance for release artifacts.
 
 ## Limits And Assumptions
 
 - Dependency Review is available for public repositories and private repositories with GitHub Advanced Security.
-- There is no automated dependency audit, SBOM, or provenance output right now.
+- There is no automated dependency audit or signed provenance output right now.
 - Binary archives are checksummed but not signed or attested yet.
 - Reintroduce supply-chain automation after the project stack is known.
 - OpenSSF Scorecard is intentionally not enabled by default because a new template repository has no real branch protection, release history, or SAST posture to score. Add it back after repository rules are configured.
@@ -34,5 +35,7 @@ The remaining defaults are:
 - Add ecosystem-specific lockfiles and keep them committed.
 - Keep release packaging reproducible enough for CI and produce explicit versioned artifacts.
 - Sign release checksums and add provenance attestations before publishing public tags.
+- Consider replacing or validating the repository-native SPDX generator with a dedicated
+  SBOM scanner once release automation matures.
 - Gate production deployment on release artifact provenance verification when possible.
 - Consider verifying attestations in the deployment environment or cluster admission layer.

@@ -17,6 +17,19 @@ fi
 SAFE_VERSION="$(printf '%s' "$VERSION" | tr '/[:space:]' '-')"
 TMP_DIR="$(mktemp -d)"
 GO_BUILD_FLAGS=(-trimpath -buildvcs=false -ldflags="-s -w")
+CREATED="${SOURCE_DATE_EPOCH:-}"
+
+if [ -n "$CREATED" ]; then
+	if date -u -d "@$CREATED" '+%Y-%m-%dT%H:%M:%SZ' >/dev/null 2>&1; then
+		CREATED="$(date -u -d "@$CREATED" '+%Y-%m-%dT%H:%M:%SZ')"
+	else
+		CREATED="$(date -u -r "$CREATED" '+%Y-%m-%dT%H:%M:%SZ')"
+	fi
+elif git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+	CREATED="$(git -C "$ROOT_DIR" log -1 --format=%cI)"
+else
+	CREATED="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+fi
 
 cleanup() {
 	rm -rf "$TMP_DIR"
@@ -68,11 +81,14 @@ for platform in $PLATFORMS; do
 	gzip -n -f "$ARCHIVE_TAR"
 done
 
+echo "generating SPDX SBOM"
+go run ./internal/tools/sbom -version "$VERSION" -created "$CREATED" -out "$DIST_DIR/sbom.spdx.json"
+
 CHECKSUMS_TMP="$TMP_DIR/checksums.txt"
 : > "$CHECKSUMS_TMP"
 
-for archive in "$DIST_DIR"/*.tar.gz; do
-	checksum_file "$archive" >> "$CHECKSUMS_TMP"
+for artifact in "$DIST_DIR"/*.tar.gz "$DIST_DIR"/sbom.spdx.json; do
+	checksum_file "$artifact" >> "$CHECKSUMS_TMP"
 done
 
 sort -k 2 "$CHECKSUMS_TMP" > "$DIST_DIR/checksums.txt"

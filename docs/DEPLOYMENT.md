@@ -23,7 +23,14 @@ make package
 `make package` writes `dist/ard_<version>_<os>_<arch>.tar.gz` archives for Linux and
 macOS on amd64 and arm64 by default. Each archive contains `ard`, `ardctl`,
 `ard-server`, `README.md`, `LICENSE`, and `VERSION`. The script also writes
-`dist/checksums.txt` with SHA-256 hashes for every archive.
+`dist/sbom.spdx.json` with the Go module dependency SBOM and `dist/checksums.txt` with
+SHA-256 hashes for every archive and the SBOM.
+
+Generate only the SBOM:
+
+```sh
+make sbom
+```
 
 Useful overrides:
 
@@ -94,5 +101,5 @@ then removes the compose stack and volume.
   reviewed configuration.
 - Rotate role token files with an atomic write-and-rename so the server sees complete
   JSON. Invalid updates are ignored and the last valid token set remains active.
-- Binary release archives include SHA-256 checksums. Release publishing, SBOM output, and
-  signed provenance are still future supply-chain work.
+- Binary release archives include an SPDX SBOM and SHA-256 checksums. Release publishing
+  and signed provenance are still future supply-chain work.

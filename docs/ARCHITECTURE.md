@@ -21,7 +21,8 @@ Cobra, Gin, GORM, and Postgres.
   to the dedicated `ard-server` runtime entrypoint. `infra/compose.yaml` runs the
   registry with Postgres for local self-hosted trials.
 - Binary distribution: `make package` produces versioned Linux/macOS amd64/arm64
-  archives for `ard`, `ardctl`, and `ard-server`, plus a SHA-256 checksum manifest.
+  archives for `ard`, `ardctl`, and `ard-server`, plus an SPDX SBOM and SHA-256 checksum
+  manifest.
 - Client flow: `ard search` and the public Go client send spec-shaped `SearchRequest`
   bodies to a registry. The registry rejects unknown request/query fields, missing
   `query.text`, and unsupported `federation` values instead of silently normalizing
@@ -115,6 +116,8 @@ Cobra, Gin, GORM, and Postgres.
 - `internal/catalog/`: local and HTTP catalog loading.
 - `internal/store/`: GORM/Postgres persistence and search.
 - `internal/config/`: environment and CLI config helpers.
+- `internal/tools/sbom/`: repository-native SPDX SBOM generator used by release
+  packaging.
 - `pkg/ard/`: public ARD model aliases and validation helpers for Go consumers.
 - `pkg/client/`: public HTTP client for unauthenticated registry discovery surfaces and
   token-protected admin management routes.

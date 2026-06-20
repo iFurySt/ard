@@ -59,6 +59,7 @@ ard verify catalog ./ai-catalog.json --source-digests
 
 ```sh
 make build
+make sbom
 make package
 make test-integration
 make test-e2e
@@ -132,8 +133,9 @@ histograms and Go runtime gauges. `ardctl admin --request-id` can carry one corr
 ID across remote artifact fetches and admin API calls.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. `make package` creates Linux/macOS
-release archives with SHA-256 checksums. CI runs formatting checks, tests, public Go
-client import checks, builds, release packaging, and Postgres integration tests.
+release archives with an SPDX SBOM and SHA-256 checksums. CI runs formatting checks,
+tests, public Go client import checks, builds, release packaging, and Postgres
+integration tests.
 `make test-e2e` runs the real artifact onboarding flow with live MCP, Skill, OpenAPI,
 policy-gate examples, a local upstream registry for auto federation, and an external
 Go admin SDK check against the live registry.
