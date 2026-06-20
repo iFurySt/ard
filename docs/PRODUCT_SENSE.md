@@ -1,7 +1,7 @@
 # Product Sense
 
-`ard` is a neutral, self-hosted Agentic Resource Discovery registry distribution and
-toolkit for organizations that need to publish, discover, verify, and govern agentic
+`ard` is a neutral self-hosted registry and toolkit for Agentic Resource Discovery. It
+is built for organizations that need to publish, discover, verify, and govern agentic
 resources without depending on a single platform vendor.
 
 ## Market Read
@@ -30,8 +30,7 @@ enterprise, agent platform, or internal tools team can fork and self-host.
 
 The project should be framed as:
 
-> Self-hosted neutral ARD registry plus client and publishing kit for enterprises and
-> agent platforms.
+> Neutral self-hosted registry and toolkit for Agentic Resource Discovery.
 
 The primary value is not "another search engine." The primary value is a deployable
 control plane for agentic resource discovery:

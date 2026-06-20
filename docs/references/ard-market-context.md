@@ -69,11 +69,10 @@ are a required dynamic discovery layer, web catalog ingestion is required, proto
 wrappers are optional, and enterprise trust is delegated into catalog metadata rather
 than owned by any one cloud platform.
 
-`ard` should therefore be a neutral, self-hosted ARD registry distribution with a client
-and publishing kit:
+`ard` should therefore be a neutral self-hosted registry and toolkit for Agentic
+Resource Discovery:
 
-> Self-hosted neutral ARD registry plus client and publishing kit for enterprises and
-> agent platforms.
+> Neutral self-hosted registry and toolkit for Agentic Resource Discovery.
 
 The project should make it easy for organizations to:
 

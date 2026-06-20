@@ -26,8 +26,8 @@ The previous product direction still holds:
 
 - A neutral self-hosted registry is a strong open-source wedge.
 - B2B users need internal discovery, verification, policy, and federation control.
-- The project should be a registry distribution plus client and publishing kit, not a
-  public marketplace or agent runtime.
+- The project should be a neutral self-hosted registry and toolkit for Agentic Resource
+  Discovery, not a public marketplace or agent runtime.
 
 The spec review adds important corrections and priorities:
 
