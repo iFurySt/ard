@@ -125,24 +125,37 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             return
         length = int(self.headers.get("content-length", "0"))
-        if length:
-            self.rfile.read(length)
+        body = self.rfile.read(length) if length else b"{}"
+        request = json.loads(body.decode("utf-8") or "{}")
         request_id = self.headers.get("x-request-id", "")
         traceparent = self.headers.get("traceparent", "")
         if request_id:
-            print(json.dumps({"event": "upstream_request", "requestId": request_id, "traceparent": traceparent}), flush=True)
+            print(json.dumps({"event": "upstream_request", "requestId": request_id, "traceparent": traceparent, "pageToken": request.get("pageToken", "")}), flush=True)
+        if request.get("pageToken") == "e2e-upstream-page-2":
+            result = {
+                "identifier": "urn:air:upstream.localhost:server:federated-archive",
+                "displayName": "Federated Archive MCP",
+                "type": "application/mcp-server-card+json",
+                "url": "https://upstream.localhost/mcp/archive.json",
+                "description": "Second-page MCP result returned by the E2E upstream registry.",
+                "score": 80,
+                "source": "e2e-upstream"
+            }
+            page_token = ""
+        else:
+            result = {
+                "identifier": "urn:air:upstream.localhost:server:federated-weather",
+                "displayName": "Federated Weather MCP",
+                "type": "application/mcp-server-card+json",
+                "url": "https://upstream.localhost/mcp/weather.json",
+                "description": "MCP result returned by the E2E upstream registry.",
+                "score": 90,
+                "source": "e2e-upstream"
+            }
+            page_token = "e2e-upstream-page-2"
         payload = {
-            "results": [
-                {
-                    "identifier": "urn:air:upstream.localhost:server:federated-weather",
-                    "displayName": "Federated Weather MCP",
-                    "type": "application/mcp-server-card+json",
-                    "url": "https://upstream.localhost/mcp/weather.json",
-                    "description": "MCP result returned by the E2E upstream registry.",
-                    "score": 90,
-                    "source": "e2e-upstream"
-                }
-            ]
+            "results": [result],
+            "pageToken": page_token
         }
         data = json.dumps(payload).encode("utf-8")
         self.send_response(200)
@@ -486,12 +499,31 @@ if first != "Federated Weather MCP":
     raise SystemExit(f"expected upstream ranked first, got {first!r}")
 PY
 bin/ardctl search agent --registry-url "${registry_url}" --kind mcp --federation auto --limit 1 --json >/tmp/ard-e2e-auto-page-token-search.json
-python3 - <<'PY'
+auto_page_token="$(python3 - <<'PY'
 import json
 data = json.load(open("/tmp/ard-e2e-auto-page-token-search.json"))
-if data.get("pageToken"):
-    raise SystemExit(f"expected no local-only page token for auto federation, got {data['pageToken']!r}")
+print(data.get("pageToken", ""))
 PY
+)"
+if [ -z "${auto_page_token}" ]; then
+  echo "auto federation did not return a cross-registry page token" >&2
+  exit 1
+fi
+bin/ardctl search agent --registry-url "${registry_url}" --kind mcp --federation auto --limit 1 --page-token "${auto_page_token}" --json >/tmp/ard-e2e-auto-page-token-search-2.json
+grep -q "Federated Weather MCP" /tmp/ard-e2e-auto-page-token-search-2.json
+auto_page_token_2="$(python3 - <<'PY'
+import json
+data = json.load(open("/tmp/ard-e2e-auto-page-token-search-2.json"))
+print(data.get("pageToken", ""))
+PY
+)"
+if [ -z "${auto_page_token_2}" ]; then
+  echo "auto federation second page did not return a follow-up page token" >&2
+  exit 1
+fi
+bin/ardctl search agent --registry-url "${registry_url}" --kind mcp --federation auto --limit 1 --page-token "${auto_page_token_2}" --json >/tmp/ard-e2e-auto-page-token-search-3.json
+grep -q "Federated Archive MCP" /tmp/ard-e2e-auto-page-token-search-3.json
+grep -q '"pageToken": "e2e-upstream-page-2"' /tmp/ard-e2e-upstream.log
 curl -fsS \
   -H "Content-Type: application/json" \
   -H "X-Request-ID: ard-e2e-auto-federation" \

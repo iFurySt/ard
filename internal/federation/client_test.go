@@ -77,6 +77,57 @@ func TestClientSearchForcesNonRecursiveFederation(t *testing.T) {
 	}
 }
 
+func TestClientSearchPageCarriesUpstreamPageTokens(t *testing.T) {
+	var seenRequest ard.SearchRequest
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if err := json.NewDecoder(request.Body).Decode(&seenRequest); err != nil {
+			http.Error(response, err.Error(), http.StatusBadRequest)
+			return
+		}
+		_ = json.NewEncoder(response).Encode(ard.SearchResponse{
+			Results: []ard.SearchResult{
+				{
+					CatalogEntry: ard.CatalogEntry{
+						Identifier:  "urn:air:upstream.example.com:server:weather-page",
+						DisplayName: "Upstream Weather Page",
+						Type:        ard.TypeMCPServerCard,
+						URL:         "https://upstream.example.com/weather-page.json",
+					},
+					Score: 70,
+				},
+			},
+			PageToken: "next-upstream-page",
+		})
+	}))
+	t.Cleanup(server.Close)
+
+	referral := ard.CatalogEntry{
+		Identifier: "urn:air:upstream.example.com:registry:public",
+		Type:       ard.TypeAIRegistry,
+		URL:        server.URL,
+	}
+	page := NewClient().SearchPage(t.Context(), []ard.CatalogEntry{referral}, ard.SearchRequest{
+		Query:      ard.SearchQuery{Text: "weather"},
+		Federation: "auto",
+		PageSize:   1,
+	}, map[string]string{
+		ReferralKey(referral): "current-upstream-page",
+	})
+
+	if seenRequest.Federation != "none" {
+		t.Fatalf("expected upstream federation none, got %q", seenRequest.Federation)
+	}
+	if seenRequest.PageToken != "current-upstream-page" {
+		t.Fatalf("expected upstream page token propagation, got %q", seenRequest.PageToken)
+	}
+	if len(page.Results) != 1 {
+		t.Fatalf("expected one result, got %#v", page.Results)
+	}
+	if page.NextPageTokens[ReferralKey(referral)] != "next-upstream-page" {
+		t.Fatalf("expected next upstream token, got %#v", page.NextPageTokens)
+	}
+}
+
 func TestSearchEndpoint(t *testing.T) {
 	tests := []struct {
 		name string

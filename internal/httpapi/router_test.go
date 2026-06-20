@@ -58,3 +58,49 @@ func TestMergeSearchResultsRanksByScoreAndDeduplicates(t *testing.T) {
 		t.Fatalf("expected local duplicate to win dedupe, got %#v", results)
 	}
 }
+
+func TestMergeSearchResultsPageBuffersUnreturnedCandidates(t *testing.T) {
+	buffered := []autoFederationBufferedResult{
+		{
+			Result: ard.SearchResult{
+				CatalogEntry: ard.CatalogEntry{
+					Identifier:  "urn:air:buffer.example.com:server:weather",
+					DisplayName: "Buffered Weather",
+					Type:        ard.TypeMCPServerCard,
+				},
+				Score: 80,
+			},
+		},
+	}
+	local := []ard.SearchResult{
+		{
+			CatalogEntry: ard.CatalogEntry{
+				Identifier:  "urn:air:local.example.com:server:weather",
+				DisplayName: "Local Weather",
+				Type:        ard.TypeMCPServerCard,
+			},
+			Score: 99,
+		},
+	}
+	upstream := []ard.SearchResult{
+		{
+			CatalogEntry: ard.CatalogEntry{
+				Identifier:  "urn:air:remote.example.com:server:weather",
+				DisplayName: "Remote Weather",
+				Type:        ard.TypeMCPServerCard,
+			},
+			Score: 90,
+		},
+	}
+
+	results, nextBuffered := mergeSearchResultsPage(buffered, local, upstream, 1)
+	if len(results) != 1 || results[0].DisplayName != "Local Weather" {
+		t.Fatalf("expected highest-scoring result only, got %#v", results)
+	}
+	if len(nextBuffered) != 2 {
+		t.Fatalf("expected two buffered candidates, got %#v", nextBuffered)
+	}
+	if nextBuffered[0].Result.DisplayName != "Remote Weather" || nextBuffered[1].Result.DisplayName != "Buffered Weather" {
+		t.Fatalf("expected unreturned candidates to remain score ordered, got %#v", nextBuffered)
+	}
+}

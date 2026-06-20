@@ -152,6 +152,10 @@ func (server Server) search(context *gin.Context) {
 		})
 		return
 	}
+	if request.NormalizedFederation() == "auto" {
+		server.autoFederationSearch(context, request)
+		return
+	}
 	page, err := server.store.SearchPage(context.Request.Context(), request, "")
 	if err != nil {
 		if errors.Is(err, pagination.ErrInvalidToken) {
@@ -179,25 +183,77 @@ func (server Server) search(context *gin.Context) {
 			return
 		}
 		response.Referrals = referrals
-	case "auto":
-		referrals, err := server.store.RegistryReferrals(context.Request.Context(), federation.MaxUpstreamRegistries)
+	}
+	context.JSON(http.StatusOK, response)
+}
+
+func (server Server) autoFederationSearch(context *gin.Context, request ard.SearchRequest) {
+	state, err := decodeAutoFederationPageToken(request.PageToken)
+	if err != nil {
+		if errors.Is(err, pagination.ErrInvalidToken) {
+			context.JSON(http.StatusBadRequest, gin.H{
+				"errorCode": "INVALID_ARGUMENT",
+				"message":   err.Error(),
+			})
+			return
+		}
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"errorCode": "INTERNAL_ERROR",
+			"message":   err.Error(),
+		})
+		return
+	}
+	localPage := store.SearchPage{}
+	if state.Initial || state.LocalPageToken != "" {
+		localRequest := request
+		localRequest.PageToken = state.LocalPageToken
+		localPage, err = server.store.SearchPage(context.Request.Context(), localRequest, "")
 		if err != nil {
+			if errors.Is(err, pagination.ErrInvalidToken) {
+				context.JSON(http.StatusBadRequest, gin.H{
+					"errorCode": "INVALID_ARGUMENT",
+					"message":   err.Error(),
+				})
+				return
+			}
 			context.JSON(http.StatusInternalServerError, gin.H{
 				"errorCode": "INTERNAL_ERROR",
 				"message":   err.Error(),
 			})
 			return
 		}
-		upstreamResults := federation.NewClient().Search(context.Request.Context(), referrals, request)
-		response.Results = mergeSearchResults(page.Results, upstreamResults, request.NormalizedPageSize())
-		if len(upstreamResults) > 0 {
-			response.PageToken = ""
-		}
 	}
-	context.JSON(http.StatusOK, response)
+	referrals, err := server.store.RegistryReferrals(context.Request.Context(), federation.MaxUpstreamRegistries)
+	if err != nil {
+		context.JSON(http.StatusInternalServerError, gin.H{
+			"errorCode": "INTERNAL_ERROR",
+			"message":   err.Error(),
+		})
+		return
+	}
+	var upstreamTokens map[string]string
+	if !state.Initial {
+		upstreamTokens = state.UpstreamPageToken
+	}
+	upstreamPage := federation.NewClient().SearchPage(context.Request.Context(), referrals, request, upstreamTokens)
+	results, buffered := mergeSearchResultsPage(state.Buffered, localPage.Results, upstreamPage.Results, request.NormalizedPageSize())
+	nextState := autoFederationPageState{
+		LocalPageToken:    localPage.NextPageToken,
+		UpstreamPageToken: upstreamPage.NextPageTokens,
+		Buffered:          buffered,
+	}
+	context.JSON(http.StatusOK, ard.SearchResponse{
+		Results:   results,
+		PageToken: encodeAutoFederationPageToken(nextState),
+	})
 }
 
 func mergeSearchResults(local []ard.SearchResult, upstream []ard.SearchResult, limit int) []ard.SearchResult {
+	results, _ := mergeSearchResultsPage(nil, local, upstream, limit)
+	return results
+}
+
+func mergeSearchResultsPage(buffered []autoFederationBufferedResult, local []ard.SearchResult, upstream []ard.SearchResult, limit int) ([]ard.SearchResult, []autoFederationBufferedResult) {
 	if limit <= 0 {
 		limit = 10
 	}
@@ -206,20 +262,29 @@ func mergeSearchResults(local []ard.SearchResult, upstream []ard.SearchResult, l
 		local  bool
 		order  int
 	}
-	seen := map[string]struct{}{}
+	seen := map[string]int{}
 	candidates := make([]candidate, 0, len(local)+len(upstream))
 	appendResult := func(result ard.SearchResult, local bool) {
-		if result.Identifier != "" {
-			if _, ok := seen[result.Identifier]; ok {
-				return
-			}
-			seen[result.Identifier] = struct{}{}
-		}
-		candidates = append(candidates, candidate{
+		candidate := candidate{
 			result: result,
 			local:  local,
 			order:  len(candidates),
-		})
+		}
+		if result.Identifier != "" {
+			existingIndex, ok := seen[result.Identifier]
+			if ok {
+				if local && !candidates[existingIndex].local {
+					candidate.order = candidates[existingIndex].order
+					candidates[existingIndex] = candidate
+				}
+				return
+			}
+			seen[result.Identifier] = len(candidates)
+		}
+		candidates = append(candidates, candidate)
+	}
+	for _, bufferedResult := range buffered {
+		appendResult(bufferedResult.Result, bufferedResult.Local)
 	}
 	for _, result := range local {
 		appendResult(result, true)
@@ -244,14 +309,24 @@ func mergeSearchResults(local []ard.SearchResult, upstream []ard.SearchResult, l
 		}
 		return left.order < right.order
 	})
+	returned := candidates
+	remaining := []candidate{}
 	if len(candidates) > limit {
-		candidates = candidates[:limit]
+		returned = candidates[:limit]
+		remaining = candidates[limit:]
 	}
-	results := make([]ard.SearchResult, 0, len(candidates))
-	for _, candidate := range candidates {
+	results := make([]ard.SearchResult, 0, len(returned))
+	for _, candidate := range returned {
 		results = append(results, candidate.result)
 	}
-	return results
+	nextBuffered := make([]autoFederationBufferedResult, 0, len(remaining))
+	for _, candidate := range remaining {
+		nextBuffered = append(nextBuffered, autoFederationBufferedResult{
+			Result: candidate.result,
+			Local:  candidate.local,
+		})
+	}
+	return results, nextBuffered
 }
 
 func (server Server) agents(context *gin.Context) {

@@ -51,13 +51,21 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 			http.Error(response, "upstream federation must be none", http.StatusBadRequest)
 			return
 		}
+		resultIdentifier := "urn:air:upstream.example.com:server:remote-weather"
+		resultName := "Remote Weather MCP"
+		nextPageToken := "remote-weather-page-2"
+		if upstreamRequest.PageToken == "remote-weather-page-2" {
+			resultIdentifier = "urn:air:upstream.example.com:server:remote-weather-archive"
+			resultName = "Remote Weather Archive MCP"
+			nextPageToken = ""
+		}
 		response.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(response).Encode(ard.SearchResponse{
 			Results: []ard.SearchResult{
 				{
 					CatalogEntry: ard.CatalogEntry{
-						Identifier:  "urn:air:upstream.example.com:server:remote-weather",
-						DisplayName: "Remote Weather MCP",
+						Identifier:  resultIdentifier,
+						DisplayName: resultName,
 						Type:        ard.TypeMCPServerCard,
 						URL:         "https://upstream.example.com/mcp/weather.json",
 					},
@@ -65,6 +73,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 					Source: "upstream-test",
 				},
 			},
+			PageToken: nextPageToken,
 		})
 	}))
 	t.Cleanup(upstreamServer.Close)
@@ -282,8 +291,30 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	if len(auto.Results) == 0 || auto.Results[0].Identifier != "urn:air:upstream.example.com:server:remote-weather" {
 		t.Fatalf("expected high-scoring upstream result first, got %#v", auto.Results)
 	}
-	if auto.PageToken != "" {
-		t.Fatalf("expected no local-only page token in auto-federated response, got %q", auto.PageToken)
+	if auto.PageToken == "" {
+		t.Fatalf("expected auto federation page token, got %#v", auto)
+	}
+	secondAutoBody, _ := json.Marshal(ard.SearchRequest{
+		Query: ard.SearchQuery{
+			Text: "weather remote",
+		},
+		Federation: "auto",
+		PageSize:   1,
+		PageToken:  auto.PageToken,
+	})
+	secondAutoRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(secondAutoBody))
+	secondAutoRequest.Header.Set("Content-Type", "application/json")
+	secondAutoResponse := httptest.NewRecorder()
+	router.ServeHTTP(secondAutoResponse, secondAutoRequest)
+	if secondAutoResponse.Code != http.StatusOK {
+		t.Fatalf("expected second auto federation HTTP 200, got %d: %s", secondAutoResponse.Code, secondAutoResponse.Body.String())
+	}
+	var secondAuto ard.SearchResponse
+	if err := json.Unmarshal(secondAutoResponse.Body.Bytes(), &secondAuto); err != nil {
+		t.Fatalf("decode second auto federation response: %v", err)
+	}
+	if len(secondAuto.Results) == 0 {
+		t.Fatalf("expected second auto federation page results, got %#v", secondAuto)
 	}
 	foundRemote := false
 	for _, result := range auto.Results {
@@ -303,9 +334,15 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 		if request.Federation != "none" {
 			t.Fatalf("expected all upstream requests to use federation=none, got %#v", upstreamRequests)
 		}
-		if request.PageToken != "" {
-			t.Fatalf("expected upstream requests to omit local page token, got %#v", upstreamRequests)
+	}
+	foundUpstreamPageToken := false
+	for _, request := range upstreamRequests {
+		if request.PageToken == "remote-weather-page-2" {
+			foundUpstreamPageToken = true
 		}
+	}
+	if !foundUpstreamPageToken {
+		t.Fatalf("expected second auto page to carry upstream page token, got %#v", upstreamRequests)
 	}
 	foundRequestID := false
 	for _, requestID := range upstreamRequestIDs {

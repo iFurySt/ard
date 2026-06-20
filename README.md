@@ -121,8 +121,8 @@ discovery. Audit events are hash-chained and can be verified through
 deployments can use a single admin token or reloadable role-scoped admin token files. URL
 artifacts can be pinned and verified with `trustManifest.sourceDigest`. Search supports
 client-followed federation referrals, bounded server-side `federation=auto` upstream
-score-ranked result merging without exposing local-only page tokens as federated cursors,
-and opaque `pageToken` pagination for local search, list, review, and audit responses.
+score-ranked result merging with opaque cross-registry page tokens, and `pageToken`
+pagination for local search, list, review, and audit responses.
 The registry also exposes request correlation, JSON access logs, and
 W3C `traceparent` propagation, plus Prometheus-style `/metrics` with HTTP duration
 histograms and Go runtime gauges. `ardctl admin --request-id` can carry one correlation
