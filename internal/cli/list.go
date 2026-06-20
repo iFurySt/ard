@@ -15,6 +15,8 @@ func newListCommand(root *rootOptions) *cobra.Command {
 	var kind string
 	var limit int
 	var pageToken string
+	var filterExpression string
+	var orderBy string
 	var jsonOutput bool
 	command := &cobra.Command{
 		Use:   "list",
@@ -29,11 +31,21 @@ func newListCommand(root *rootOptions) *cobra.Command {
 			if err := registryStore.AutoMigrate(); err != nil {
 				return err
 			}
+			filter, err := store.ParseListFilterExpression(filterExpression)
+			if err != nil {
+				return err
+			}
+			order, err := store.ParseListOrderBy(orderBy)
+			if err != nil {
+				return err
+			}
 
 			page, err := registryStore.ListEntriesPage(ctx, store.ListOptions{
 				Limit:     limit,
 				PageToken: pageToken,
 				Type:      mediaTypeForKind(kind),
+				Filter:    filter,
+				OrderBy:   order,
 			})
 			if err != nil {
 				return err
@@ -55,6 +67,8 @@ func newListCommand(root *rootOptions) *cobra.Command {
 	command.Flags().StringVar(&kind, "kind", "", "Filter by result kind: mcp, a2a, skill, catalog, registry")
 	command.Flags().IntVar(&limit, "limit", 20, "Maximum entries to list")
 	command.Flags().StringVar(&pageToken, "page-token", "", "Opaque page token returned by a previous list response")
+	command.Flags().StringVar(&filterExpression, "filter", "", "Deterministic list filter expression, for example: type = 'application/mcp-server-card+json'")
+	command.Flags().StringVar(&orderBy, "order-by", "", "Deterministic list order, for example: displayName DESC")
 	command.Flags().BoolVar(&jsonOutput, "json", false, "Print machine-readable list response JSON")
 	return command
 }

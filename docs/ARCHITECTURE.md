@@ -40,7 +40,8 @@ Cobra, Gin, GORM, and Postgres.
 - Catalog export: `ardctl export catalog` writes persisted registry entries as a
   spec-shaped `ai-catalog.json` for backup, migration, or well-known publication.
 - Local registry management: `ardctl list` and `ardctl remove` inspect and prune
-  persisted catalog entries.
+  persisted catalog entries. Local list shares the public browse filter/order parser for
+  deterministic inventory workflows.
 - Admin API: when `ARD_ADMIN_TOKEN`, `--admin-token`, `ARD_ADMIN_TOKENS_FILE`, or
   `--admin-tokens-file` is configured, Gin exposes protected `/admin/*` routes for entry
   listing, entry upsert, catalog upsert, catalog export, lifecycle status changes, audit
@@ -207,9 +208,11 @@ boundary without changing HTTP contracts.
   audit event listing plus audit hash-chain verification.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`,
   `add openapi`, `crawl`, `admin`, `export catalog`, `list`, `remove`, `verify catalog`,
-  and `search` are implemented. `ardctl admin status` manages remote entry lifecycle
-  state, `ardctl admin review --reason` handles pending review decisions with optional
-  audit reasons, and `ardctl admin audit` lists and verifies admin mutation events.
+  and `search` are implemented. `ardctl list --filter` and `--order-by` reuse the same
+  deterministic browse parser as public `/agents`. `ardctl admin status` manages remote
+  entry lifecycle state, `ardctl admin review --reason` handles pending review decisions
+  with optional audit reasons, and `ardctl admin audit` lists and verifies admin mutation
+  events.
   `ard-server` runs the same server without exposing management subcommands.
 
 ## Specification Alignment

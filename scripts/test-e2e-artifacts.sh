@@ -269,6 +269,17 @@ bin/ardctl admin add a2a "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" 
 grep -q '"requestId": "ard-e2e-artifact-fetch"' /tmp/ard-e2e-fixtures.log
 grep -q '"traceparent": "00-' /tmp/ard-e2e-fixtures.log
 
+bin/ardctl --database-url "${database_url}" list \
+  --filter "publisherId = 'github.com'" \
+  --order-by "displayName DESC" \
+  --json >/tmp/ard-e2e-local-list-filtered.json
+grep -q "open-browser-use" /tmp/ard-e2e-local-list-filtered.json
+if bin/ardctl --database-url "${database_url}" list --filter "score = '100'" >/tmp/ard-e2e-local-list-invalid-filter.log 2>&1; then
+  echo "local list unexpectedly accepted unsupported filter" >&2
+  exit 1
+fi
+grep -q 'unsupported filter field "score"' /tmp/ard-e2e-local-list-invalid-filter.log
+
 bin/ardctl admin list --kind mcp --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-list-mcp.json
 grep -q "Agentmemory MCP" /tmp/ard-e2e-list-mcp.json
 grep -q "Weather Data Node" /tmp/ard-e2e-list-mcp.json

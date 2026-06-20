@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | CLI | Operators can use the same deterministic browse filters from local `ardctl list` inventory workflows. | Moved list filter/order parsing into the store layer and added `ardctl list --filter` / `--order-by` with E2E coverage. |
 | 2026-06-21 | API | Developer portals can now browse with deterministic filters and ordering instead of fetching the whole active registry. | Added `/agents` filter parsing for common spec fields and whitelisted `orderBy` support backed by Postgres queries. |
 | 2026-06-21 | API | Browse requests with invalid pagination or unsupported query options now fail fast instead of being silently normalized or ignored. | Added public `/agents` query validation for `pageSize`, `pageToken`, unsupported `filter` / `orderBy`, and unknown parameters. |
 | 2026-06-21 | API | Explore requests with unsupported root, query, or facet fields now fail fast instead of being partially ignored. | Added schema-aligned JSON decode checks and shared validation for `ExploreRequest` facet aggregation inputs. |
