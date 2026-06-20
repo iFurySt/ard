@@ -32,6 +32,12 @@ func TestCLICommandOmitsServe(t *testing.T) {
 	if _, _, err := command.Find([]string{"export"}); err != nil {
 		t.Fatalf("expected ardctl export command: %v", err)
 	}
+	if _, _, err := command.Find([]string{"list"}); err != nil {
+		t.Fatalf("expected ardctl list command: %v", err)
+	}
+	if _, _, err := command.Find([]string{"remove"}); err != nil {
+		t.Fatalf("expected ardctl remove command: %v", err)
+	}
 }
 
 func TestServerCommandRunsAtRoot(t *testing.T) {

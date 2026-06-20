@@ -181,11 +181,8 @@ func ValidateCatalog(catalog Catalog) error {
 }
 
 func ValidateCatalogEntry(entry CatalogEntry) error {
-	if entry.Identifier == "" {
-		return errors.New("identifier is required")
-	}
-	if !urnPattern.MatchString(entry.Identifier) {
-		return fmt.Errorf("identifier %q must match urn:air:<publisher>:<name>", entry.Identifier)
+	if err := ValidateIdentifier(entry.Identifier); err != nil {
+		return err
 	}
 	if entry.DisplayName == "" {
 		return errors.New("displayName is required")
@@ -203,6 +200,16 @@ func ValidateCatalogEntry(entry CatalogEntry) error {
 	}
 	if queries := len(entry.RepresentativeQueries); queries > 0 && (queries < 2 || queries > 5) {
 		return fmt.Errorf("representativeQueries must contain 2 to 5 items when present")
+	}
+	return nil
+}
+
+func ValidateIdentifier(identifier string) error {
+	if identifier == "" {
+		return errors.New("identifier is required")
+	}
+	if !urnPattern.MatchString(identifier) {
+		return fmt.Errorf("identifier %q must match urn:air:<publisher>:<name>", identifier)
 	}
 	return nil
 }

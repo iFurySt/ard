@@ -28,6 +28,8 @@ ard add mcp https://example.com/mcp/server.json
 ard add a2a https://example.com/.well-known/agent-card.json
 ard add skill https://example.com/skills/open-browser-use/SKILL.md
 ard crawl
+ardctl list --kind mcp
+ardctl remove urn:air:example.com:server:weather --yes
 ardctl export catalog -o ai-catalog.json
 ard search "query observability logs" --kind mcp
 ard verify catalog https://example.com/.well-known/ai-catalog.json
@@ -43,6 +45,7 @@ bin/ard --database-url "$DATABASE_URL" add catalog ./internal/catalog/testdata/a
 bin/ard --database-url "$DATABASE_URL" add mcp ./internal/adapters/testdata/mcp-server-card.json
 bin/ard --database-url "$DATABASE_URL" add a2a ./internal/adapters/testdata/a2a-agent-card.json
 bin/ard --database-url "$DATABASE_URL" add skill ./internal/adapters/testdata/open-browser-use/SKILL.md
+bin/ardctl --database-url "$DATABASE_URL" list --kind mcp
 bin/ard verify catalog ./internal/catalog/testdata/acme-ai-catalog.json
 bin/ard --database-url "$DATABASE_URL" crawl https://example.com/
 bin/ardctl --database-url "$DATABASE_URL" export catalog -o ai-catalog.json
@@ -59,8 +62,9 @@ bin/ardctl search "weather forecast" --kind mcp --json
 This repository is in early implementation. Current milestones include a Go CLI,
 Gin-based registry server, GORM/Postgres persistence, catalog import, well-known catalog
 crawl, MCP/A2A/Skill artifact onboarding, catalog verification, ARD search, browse, and
-explore facets, and catalog export. It builds three entry points: `ard` for the combined
-toolkit, `ardctl` for CLI/client operations, and `ard-server` for the registry server.
+explore facets, catalog export, local listing, and entry removal. It builds three entry
+points: `ard` for the combined toolkit, `ardctl` for CLI/client operations, and
+`ard-server` for the registry server.
 
 Implementation should track the upstream
 [`ards-project/ard-spec`](https://github.com/ards-project/ard-spec) closely, including

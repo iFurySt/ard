@@ -47,6 +47,11 @@ type SearchOptions struct {
 	PageSize int
 }
 
+type ListOptions struct {
+	Limit int
+	Type  string
+}
+
 func Open(databaseURL string) (*Store, error) {
 	db, err := gorm.Open(postgres.Open(databaseURL), &gorm.Config{})
 	if err != nil {
@@ -111,15 +116,27 @@ func (store *Store) Search(ctx context.Context, request ard.SearchRequest, sourc
 }
 
 func (store *Store) List(ctx context.Context, limit int) ([]ard.CatalogEntry, int64, error) {
+	return store.ListEntries(ctx, ListOptions{Limit: limit})
+}
+
+func (store *Store) ListEntries(ctx context.Context, options ListOptions) ([]ard.CatalogEntry, int64, error) {
+	limit := options.Limit
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
+	listQuery := func() *gorm.DB {
+		query := store.db.WithContext(ctx).Model(&CatalogEntryRecord{})
+		if options.Type != "" {
+			query = query.Where("type = ?", options.Type)
+		}
+		return query
+	}
 	var total int64
-	if err := store.db.WithContext(ctx).Model(&CatalogEntryRecord{}).Count(&total).Error; err != nil {
+	if err := listQuery().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var records []CatalogEntryRecord
-	if err := store.db.WithContext(ctx).Order("display_name ASC").Limit(limit).Find(&records).Error; err != nil {
+	if err := listQuery().Order("display_name ASC").Limit(limit).Find(&records).Error; err != nil {
 		return nil, 0, err
 	}
 	entries := make([]ard.CatalogEntry, 0, len(records))
@@ -131,6 +148,14 @@ func (store *Store) List(ctx context.Context, limit int) ([]ard.CatalogEntry, in
 		entries = append(entries, entry)
 	}
 	return entries, total, nil
+}
+
+func (store *Store) DeleteEntry(ctx context.Context, identifier string) (bool, error) {
+	result := store.db.WithContext(ctx).Delete(&CatalogEntryRecord{}, "identifier = ?", identifier)
+	if result.Error != nil {
+		return false, result.Error
+	}
+	return result.RowsAffected > 0, nil
 }
 
 func (store *Store) ExportCatalog(ctx context.Context, host *ard.HostInfo) (ard.Catalog, error) {

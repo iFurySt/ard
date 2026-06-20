@@ -31,6 +31,15 @@ func TestValidateCatalogEntryRejectsLegacyAIURN(t *testing.T) {
 	}
 }
 
+func TestValidateIdentifier(t *testing.T) {
+	if err := ValidateIdentifier("urn:air:acme.com:server:weather"); err != nil {
+		t.Fatalf("expected identifier to validate: %v", err)
+	}
+	if err := ValidateIdentifier("weather"); err == nil {
+		t.Fatal("expected invalid identifier to be rejected")
+	}
+}
+
 func TestValidateCatalogEntryEnforcesValueOrReference(t *testing.T) {
 	entry := CatalogEntry{
 		Identifier:  "urn:air:acme.com:server:weather",

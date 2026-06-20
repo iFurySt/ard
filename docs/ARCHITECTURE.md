@@ -8,7 +8,8 @@ Cobra, Gin, GORM, and Postgres.
 - Registry server: self-hosted ARD registry exposing discovery, search, health, and
   catalog endpoints through Gin.
 - CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
-  `add skill`, `crawl`, `export catalog`, `verify catalog`, and `search` today.
+  `add skill`, `crawl`, `export catalog`, `list`, `remove`, `verify catalog`, and
+  `search` today.
 - Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
   management operations without server startup, and `cmd/ard-server` ships a dedicated
   registry server binary.
@@ -17,6 +18,8 @@ Cobra, Gin, GORM, and Postgres.
   validates them, and persists entries.
 - Catalog export: `ardctl export catalog` writes persisted registry entries as a
   spec-shaped `ai-catalog.json` for backup, migration, or well-known publication.
+- Local registry management: `ardctl list` and `ardctl remove` inspect and prune
+  persisted catalog entries.
 - Artifact onboarding: `ard add mcp`, `ard add a2a`, and `ard add skill` translate real
   MCP server cards, A2A agent cards, and Skill markdown files into ARD catalog entries.
 - Verification engine: initial schema-level checks cover `urn:air:`, required fields,
@@ -71,7 +74,7 @@ boundary without changing HTTP contracts.
 
 ## Core Data Flow
 
-1. A user adds a catalog, registry, or artifact with the CLI or API.
+1. A user adds, lists, removes, exports, or searches catalog entries with the CLI or API.
 2. The crawler fetches `/.well-known/ai-catalog.json` or a direct artifact URL.
 3. The adapter layer normalizes supported artifacts into ARD catalog entries.
 4. The verification layer validates schema, media type, `url`/`data` exclusivity,
@@ -106,8 +109,8 @@ boundary without changing HTTP contracts.
 - `GET /agents`: optional deterministic browse endpoint; implemented for basic listing.
 - `GET /health`: deployment health. Implemented.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`, `crawl`,
-  `export catalog`, `verify catalog`, and `search` are implemented. `ard-server` runs
-  the same server without exposing management subcommands.
+  `export catalog`, `list`, `remove`, `verify catalog`, and `search` are implemented.
+  `ard-server` runs the same server without exposing management subcommands.
 
 ## Specification Alignment
 

@@ -77,6 +77,19 @@ func TestPostgresImportAndSearch(t *testing.T) {
 		t.Fatalf("expected positive relevance score, got %d", results[0].Score)
 	}
 
+	listed, total, err := registryStore.ListEntries(ctx, ListOptions{Limit: 10, Type: ard.TypeMCPServerCard})
+	if err != nil {
+		t.Fatalf("list entries: %v", err)
+	}
+	if total < 1 || len(listed) < 1 {
+		t.Fatalf("expected listed MCP entries, got total=%d len=%d", total, len(listed))
+	}
+	for _, entry := range listed {
+		if entry.Type != ard.TypeMCPServerCard {
+			t.Fatalf("expected MCP entry after type filter, got %s", entry.Type)
+		}
+	}
+
 	exported, err := registryStore.ExportCatalog(ctx, &ard.HostInfo{DisplayName: "Integration Registry"})
 	if err != nil {
 		t.Fatalf("export catalog: %v", err)
@@ -92,5 +105,20 @@ func TestPostgresImportAndSearch(t *testing.T) {
 	}
 	if err := ard.ValidateCatalog(exported); err != nil {
 		t.Fatalf("exported catalog should validate: %v", err)
+	}
+
+	removed, err := registryStore.DeleteEntry(ctx, "urn:air:acme.com:agent:assistant")
+	if err != nil {
+		t.Fatalf("delete entry: %v", err)
+	}
+	if !removed {
+		t.Fatal("expected assistant entry to be removed")
+	}
+	removed, err = registryStore.DeleteEntry(ctx, "urn:air:acme.com:agent:assistant")
+	if err != nil {
+		t.Fatalf("delete missing entry: %v", err)
+	}
+	if removed {
+		t.Fatal("expected second delete to report missing entry")
 	}
 }
