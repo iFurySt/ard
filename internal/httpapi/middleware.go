@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 const requestIDKey = "request_id"
@@ -20,6 +21,7 @@ func requestIDMiddleware() gin.HandlerFunc {
 		}
 		context.Set(requestIDKey, requestID)
 		context.Header("X-Request-ID", requestID)
+		context.Request = context.Request.WithContext(requestid.With(context.Request.Context(), requestID))
 		context.Next()
 	}
 }

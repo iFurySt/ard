@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 func TestLoadMCPServerCardFromLocalFile(t *testing.T) {
@@ -55,6 +56,27 @@ func TestLoadA2AAgentCardFromHTTP(t *testing.T) {
 	}
 	if got := entry.Metadata["protocolVersion"]; got != "0.3.0" {
 		t.Fatalf("unexpected protocolVersion metadata: %#v", got)
+	}
+}
+
+func TestLoadA2AAgentCardFromHTTPPropagatesRequestID(t *testing.T) {
+	seenRequestID := ""
+	source := testArtifactServerWithHandler(t, filepath.Join("testdata", "a2a-agent-card.json"), func(request *http.Request) {
+		seenRequestID = request.Header.Get(requestid.Header)
+	})
+	entry, err := LoadA2AAgentCard(
+		requestid.With(context.Background(), "artifact-loader-request"),
+		source,
+		Options{Publisher: "example.com"},
+	)
+	if err != nil {
+		t.Fatalf("load A2A agent card: %v", err)
+	}
+	if entry.Identifier != "urn:air:example.com:agent:hello-world-agent" {
+		t.Fatalf("unexpected identifier: %s", entry.Identifier)
+	}
+	if seenRequestID != "artifact-loader-request" {
+		t.Fatalf("expected request ID propagation, got %q", seenRequestID)
 	}
 }
 
@@ -141,12 +163,19 @@ func TestLoadOpenAPIFromLocalYAML(t *testing.T) {
 }
 
 func testArtifactServer(t *testing.T, path string) string {
+	return testArtifactServerWithHandler(t, path, nil)
+}
+
+func testArtifactServerWithHandler(t *testing.T, path string, inspect func(*http.Request)) string {
 	t.Helper()
 	data, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatalf("read test artifact: %v", err)
 	}
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		if inspect != nil {
+			inspect(request)
+		}
 		response.Header().Set("Content-Type", "application/json")
 		_, _ = response.Write(data)
 	}))

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 func TestVerifySourceDigests(t *testing.T) {
@@ -36,6 +37,37 @@ func TestVerifySourceDigests(t *testing.T) {
 	}
 	if len(results) != 1 || !results[0].Verified {
 		t.Fatalf("unexpected results: %#v", results)
+	}
+}
+
+func TestVerifySourceDigestsPropagatesRequestID(t *testing.T) {
+	seenRequestID := ""
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		seenRequestID = request.Header.Get(requestid.Header)
+		_, _ = response.Write([]byte("artifact"))
+	}))
+	t.Cleanup(server.Close)
+
+	_, err := VerifySourceDigests(requestid.With(context.Background(), "verify-source-request"), ard.Catalog{
+		SpecVersion: "1.0",
+		Entries: []ard.CatalogEntry{
+			{
+				Identifier:  "urn:air:example.com:agent:test",
+				DisplayName: "Test Agent",
+				Type:        ard.TypeA2AAgentCard,
+				URL:         server.URL,
+				TrustManifest: map[string]any{
+					"identity":     "https://example.com",
+					"sourceDigest": "sha256:c7c5c1d70c5dec4416ab6158afd0b223ef40c29b1dc1f97ed9428b94d4cadb1c",
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("verify source digest: %v", err)
+	}
+	if seenRequestID != "verify-source-request" {
+		t.Fatalf("expected request ID propagation, got %q", seenRequestID)
 	}
 }
 

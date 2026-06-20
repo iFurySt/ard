@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 const maxVerifyArtifactBytes = 4 << 20
@@ -62,6 +63,7 @@ func fetchDigest(ctx context.Context, artifactURL string) (string, error) {
 		}
 		request.Header.Set("Accept", "*/*")
 		request.Header.Set("User-Agent", "ard/0.1")
+		requestid.SetHeader(request.Header, ctx)
 		response, err := client.Do(request)
 		if err != nil {
 			lastErr = err

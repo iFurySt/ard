@@ -12,23 +12,18 @@ import (
 	"time"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 const MaxUpstreamRegistries = 3
 const MaxResponseBytes = 2 * 1024 * 1024
-
-type requestIDContextKey struct{}
 
 type Client struct {
 	httpClient http.Client
 }
 
 func WithRequestID(ctx context.Context, requestID string) context.Context {
-	requestID = strings.TrimSpace(requestID)
-	if requestID == "" {
-		return ctx
-	}
-	return context.WithValue(ctx, requestIDContextKey{}, requestID)
+	return requestid.With(ctx, requestID)
 }
 
 func NewClient() Client {
@@ -68,9 +63,7 @@ func (client Client) searchOne(ctx context.Context, referral ard.CatalogEntry, r
 	httpRequest.Header.Set("Content-Type", "application/json")
 	httpRequest.Header.Set("Accept", "application/json")
 	httpRequest.Header.Set("User-Agent", "ard/0.1")
-	if requestID, ok := ctx.Value(requestIDContextKey{}).(string); ok && requestID != "" {
-		httpRequest.Header.Set("X-Request-ID", requestID)
-	}
+	requestid.SetHeader(httpRequest.Header, ctx)
 
 	response, err := client.httpClient.Do(httpRequest)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 func TestLoadLocalCatalog(t *testing.T) {
@@ -44,6 +45,28 @@ func TestLoadHTTPCatalog(t *testing.T) {
 	}
 	if len(catalog.Entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(catalog.Entries))
+	}
+}
+
+func TestLoadHTTPCatalogPropagatesRequestID(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("testdata", "acme-ai-catalog.json"))
+	if err != nil {
+		t.Fatalf("read test catalog: %v", err)
+	}
+	seenRequestID := ""
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		seenRequestID = request.Header.Get(requestid.Header)
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write(data)
+	}))
+	defer server.Close()
+
+	ctx := requestid.With(context.Background(), "catalog-loader-request")
+	if _, err := Load(ctx, server.URL); err != nil {
+		t.Fatalf("load HTTP catalog: %v", err)
+	}
+	if seenRequestID != "catalog-loader-request" {
+		t.Fatalf("expected request ID propagation, got %q", seenRequestID)
 	}
 }
 

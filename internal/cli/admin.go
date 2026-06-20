@@ -16,12 +16,14 @@ import (
 	"github.com/ifuryst/ard/internal/ard"
 	"github.com/ifuryst/ard/internal/catalog"
 	"github.com/ifuryst/ard/internal/config"
+	"github.com/ifuryst/ard/internal/requestid"
 	"github.com/spf13/cobra"
 )
 
 type adminOptions struct {
 	registryURL string
 	adminToken  string
+	requestID   string
 }
 
 func newAdminCommand() *cobra.Command {
@@ -32,6 +34,7 @@ func newAdminCommand() *cobra.Command {
 	}
 	command.PersistentFlags().StringVar(&options.registryURL, "registry-url", envOrDefault("ARD_REGISTRY_URL", "http://127.0.0.1:8080"), "ARD registry base URL")
 	command.PersistentFlags().StringVar(&options.adminToken, "admin-token", "", "Admin bearer token. Defaults to ARD_ADMIN_TOKEN.")
+	command.PersistentFlags().StringVar(&options.requestID, "request-id", envOrDefault("ARD_REQUEST_ID", ""), "Request ID for correlating remote admin operations. Defaults to a generated ID.")
 	command.AddCommand(newAdminAuditCommand(&options))
 	command.AddCommand(newAdminListCommand(&options))
 	command.AddCommand(newAdminAddCommand(&options))
@@ -51,8 +54,9 @@ func newAdminAuditCommand(options *adminOptions) *cobra.Command {
 		Use:   "audit",
 		Short: "List remote admin audit events",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := adminOperationContext(cmd.Context(), *options)
 			if verifyChain {
-				body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/audit/verify", nil)
+				body, err := adminRequest(ctx, *options, http.MethodGet, "/admin/audit/verify", nil)
 				if err != nil {
 					return err
 				}
@@ -83,7 +87,7 @@ func newAdminAuditCommand(options *adminOptions) *cobra.Command {
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/audit?"+query.Encode(), nil)
+			body, err := adminRequest(ctx, *options, http.MethodGet, "/admin/audit?"+query.Encode(), nil)
 			if err != nil {
 				return err
 			}
@@ -128,6 +132,7 @@ func newAdminListCommand(options *adminOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List entries through the remote admin API",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := adminOperationContext(cmd.Context(), *options)
 			query := url.Values{}
 			if kind != "" {
 				query.Set("kind", kind)
@@ -141,7 +146,7 @@ func newAdminListCommand(options *adminOptions) *cobra.Command {
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/entries?"+query.Encode(), nil)
+			body, err := adminRequest(ctx, *options, http.MethodGet, "/admin/entries?"+query.Encode(), nil)
 			if err != nil {
 				return err
 			}
@@ -193,7 +198,8 @@ func newAdminAddCatalogCommand(options *adminOptions) *cobra.Command {
 		Short: "Add an ai-catalog.json file or URL through the remote admin API",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			loadedCatalog, err := catalog.Load(context.Background(), args[0])
+			ctx := adminOperationContext(cmd.Context(), *options)
+			loadedCatalog, err := catalog.Load(ctx, args[0])
 			if err != nil {
 				return err
 			}
@@ -201,7 +207,7 @@ func newAdminAddCatalogCommand(options *adminOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := adminRequest(cmd.Context(), *options, http.MethodPost, "/admin/catalogs", payload); err != nil {
+			if _, err := adminRequest(ctx, *options, http.MethodPost, "/admin/catalogs", payload); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "remote imported %d catalog entries from %s\n", len(loadedCatalog.Entries), args[0])
@@ -218,7 +224,8 @@ func newAdminAddArtifactCommand(options *adminOptions, kind string, short string
 		Short: short,
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			entry, err := load(context.Background(), args[0], adapterOptions)
+			ctx := adminOperationContext(cmd.Context(), *options)
+			entry, err := load(ctx, args[0], adapterOptions)
 			if err != nil {
 				return err
 			}
@@ -226,7 +233,7 @@ func newAdminAddArtifactCommand(options *adminOptions, kind string, short string
 			if err != nil {
 				return err
 			}
-			if _, err := adminRequest(cmd.Context(), *options, http.MethodPost, "/admin/entries", payload); err != nil {
+			if _, err := adminRequest(ctx, *options, http.MethodPost, "/admin/entries", payload); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "remote imported %s %s from %s\n", entry.Type, entry.Identifier, args[0])
@@ -254,7 +261,8 @@ func newAdminExportCatalogCommand(options *adminOptions) *cobra.Command {
 		Use:   "catalog",
 		Short: "Export remote registry entries as ai-catalog.json",
 		RunE: func(cmd *cobra.Command, args []string) error {
-			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/catalog", nil)
+			ctx := adminOperationContext(cmd.Context(), *options)
+			body, err := adminRequest(ctx, *options, http.MethodGet, "/admin/catalog", nil)
 			if err != nil {
 				return err
 			}
@@ -294,7 +302,8 @@ func newAdminRemoveCommand(options *adminOptions) *cobra.Command {
 			if !yes {
 				return fmt.Errorf("refusing to remove %s without --yes", identifier)
 			}
-			_, err := adminRequest(cmd.Context(), *options, http.MethodDelete, "/admin/entries/"+url.PathEscape(identifier), nil)
+			ctx := adminOperationContext(cmd.Context(), *options)
+			_, err := adminRequest(ctx, *options, http.MethodDelete, "/admin/entries/"+url.PathEscape(identifier), nil)
 			if err != nil {
 				if missingOK && strings.Contains(err.Error(), "HTTP 404") {
 					fmt.Fprintf(cmd.OutOrStdout(), "remote entry not found: %s\n", identifier)
@@ -330,6 +339,7 @@ func newAdminReviewListCommand(options *adminOptions) *cobra.Command {
 		Use:   "list",
 		Short: "List pending remote entries",
 		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := adminOperationContext(cmd.Context(), *options)
 			query := url.Values{}
 			if limit > 0 {
 				query.Set("pageSize", fmt.Sprint(limit))
@@ -337,7 +347,7 @@ func newAdminReviewListCommand(options *adminOptions) *cobra.Command {
 			if pageToken != "" {
 				query.Set("pageToken", pageToken)
 			}
-			body, err := adminRequest(cmd.Context(), *options, http.MethodGet, "/admin/reviews?"+query.Encode(), nil)
+			body, err := adminRequest(ctx, *options, http.MethodGet, "/admin/reviews?"+query.Encode(), nil)
 			if err != nil {
 				return err
 			}
@@ -371,7 +381,8 @@ func newAdminReviewDecisionCommand(options *adminOptions, action string, short s
 			if err := ard.ValidateIdentifier(identifier); err != nil {
 				return err
 			}
-			if _, err := adminRequest(cmd.Context(), *options, http.MethodPost, "/admin/reviews/"+url.PathEscape(identifier)+"/"+action, nil); err != nil {
+			ctx := adminOperationContext(cmd.Context(), *options)
+			if _, err := adminRequest(ctx, *options, http.MethodPost, "/admin/reviews/"+url.PathEscape(identifier)+"/"+action, nil); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "remote %s %s\n", pastTense, identifier)
@@ -401,7 +412,8 @@ func newAdminStatusCommand(options *adminOptions) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			if _, err := adminRequest(cmd.Context(), *options, http.MethodPatch, "/admin/entries/"+url.PathEscape(identifier)+"/status", payload); err != nil {
+			ctx := adminOperationContext(cmd.Context(), *options)
+			if _, err := adminRequest(ctx, *options, http.MethodPatch, "/admin/entries/"+url.PathEscape(identifier)+"/status", payload); err != nil {
 				return err
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "remote set %s status to %s\n", identifier, status)
@@ -432,6 +444,14 @@ type storeAuditEvent struct {
 	CreatedAt    string `json:"createdAt"`
 }
 
+func adminOperationContext(ctx context.Context, options adminOptions) context.Context {
+	if options.requestID != "" {
+		return requestid.With(ctx, options.requestID)
+	}
+	ctx, _ = requestid.Ensure(ctx)
+	return ctx
+}
+
 func adminRequest(ctx context.Context, options adminOptions, method string, path string, payload []byte) ([]byte, error) {
 	token := config.AdminToken(options.adminToken)
 	if token == "" {
@@ -445,6 +465,7 @@ func adminRequest(ctx context.Context, options adminOptions, method string, path
 	request.Header.Set("Authorization", "Bearer "+token)
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("User-Agent", "ardctl/0.1")
+	requestid.SetHeader(request.Header, ctx)
 	if payload != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}

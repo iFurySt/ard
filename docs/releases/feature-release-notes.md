@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Observability | Operators can correlate remote artifact fetches with the admin API mutations they trigger. | Added shared request-ID context propagation for catalog/artifact/source-digest fetches and `ardctl admin --request-id`, with unit and real E2E coverage. |
 | 2026-06-21 | Observability | Operators can correlate local and upstream logs for server-side federated searches. | Propagated inbound `X-Request-ID` to bounded `federation=auto` upstream requests, with unit, integration, and real E2E coverage. |
 | 2026-06-21 | Security | Operators can detect persisted admin audit event tampering. | Added `previousHash`/`hash` fields to audit events, `/admin/audit/verify`, and `ardctl admin audit --verify-chain`, with integration and real E2E coverage. |
 | 2026-06-21 | Security | Operators can rotate role-scoped admin tokens without restarting the registry. | Added runtime reload for admin token files, preserving the last valid token set on invalid updates, with unit and real E2E coverage. |

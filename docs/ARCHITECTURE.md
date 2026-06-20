@@ -53,7 +53,8 @@ Cobra, Gin, GORM, and Postgres.
   hash chain.
 - Request correlation: Gin middleware preserves or generates `X-Request-ID`, returns it
   on every HTTP response, emits JSON access logs, and attaches request IDs to admin audit
-  events.
+  events. Shared request-ID context propagation also covers outbound catalog/artifact
+  fetches and source digest verification.
 - Metrics: Gin exposes public Prometheus-style `/metrics` with process uptime,
   in-flight requests, request totals, and request latency sums by method, route, and
   status.
@@ -142,6 +143,9 @@ boundary without changing HTTP contracts.
   referrals, uses non-recursive upstream search requests, limits response bodies, and
   returns a local-first merged result set. Local page tokens are not forwarded to
   upstream registries. Request IDs are forwarded for correlation; admin tokens are not.
+- Outbound catalog and artifact fetches should propagate request IDs when the initiating
+  context carries one. `ardctl admin` generates an operation-level request ID by default
+  and accepts `--request-id` / `ARD_REQUEST_ID` when operators want to set it explicitly.
 - Secrets and tokens may be used during request scope only; they must not be stored or
   emitted in plain text.
 - Admin API routes must remain disabled by default and require an authorized

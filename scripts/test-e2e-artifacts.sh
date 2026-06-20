@@ -16,6 +16,7 @@ tokens_file="$(mktemp /tmp/ard-e2e-tokens-XXXXXX.json)"
 mcp_card_file="$(mktemp /tmp/ard-e2e-mcp-card-XXXXXX.json)"
 skill_file="$(mktemp /tmp/ard-e2e-skill-XXXXXX.md)"
 openapi_file="$(mktemp /tmp/ard-e2e-openapi-XXXXXX.json)"
+fixture_server_file="$(mktemp /tmp/ard-e2e-fixture-XXXXXX.py)"
 upstream_server_file="$(mktemp /tmp/ard-e2e-upstream-XXXXXX.py)"
 conformance_bin="${ARD_CONFORMANCE_BIN:-../ard-spec/conformance/bin/conformance-test}"
 
@@ -38,7 +39,7 @@ cleanup() {
     wait "${upstream_pid}" >/dev/null 2>&1 || true
   fi
   docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
-  rm -f "${export_file}" "${referral_catalog_file}" "${policy_file}" "${tokens_file}" "${mcp_card_file}" "${skill_file}" "${openapi_file}" "${upstream_server_file}"
+  rm -f "${export_file}" "${referral_catalog_file}" "${policy_file}" "${tokens_file}" "${mcp_card_file}" "${skill_file}" "${openapi_file}" "${fixture_server_file}" "${upstream_server_file}"
 }
 trap cleanup EXIT
 
@@ -141,6 +142,29 @@ class Handler(BaseHTTPRequestHandler):
 ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), Handler).serve_forever()
 PY
 
+cat >"${fixture_server_file}" <<'PY'
+import json
+import sys
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
+
+
+class Handler(SimpleHTTPRequestHandler):
+    def do_GET(self):
+        request_id = self.headers.get("x-request-id", "")
+        if request_id:
+            print(json.dumps({"event": "fixture_request", "requestId": request_id, "path": self.path}), flush=True)
+        return super().do_GET()
+
+    def log_message(self, format, *args):
+        return
+
+
+directory = sys.argv[2]
+handler = partial(Handler, directory=directory)
+ThreadingHTTPServer(("127.0.0.1", int(sys.argv[1])), handler).serve_forever()
+PY
+
 docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
 docker run \
   -d \
@@ -159,7 +183,7 @@ for _ in $(seq 1 60); do
 done
 docker exec "${postgres_container}" pg_isready -U ard -d ard >/dev/null
 
-python3 -m http.server "${fixture_port}" --directory internal/adapters/testdata >/tmp/ard-e2e-fixtures.log 2>&1 &
+python3 "${fixture_server_file}" "${fixture_port}" internal/adapters/testdata >/tmp/ard-e2e-fixtures.log 2>&1 &
 fixture_pid=$!
 for _ in $(seq 1 30); do
   if curl -fsS "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" >/dev/null 2>&1; then
@@ -229,7 +253,9 @@ bin/ardctl admin add openapi "${openapi_file}" \
 bin/ardctl admin add a2a "http://127.0.0.1:${fixture_port}/a2a-agent-card.json" \
   --publisher example.com \
   --registry-url "${registry_url}" \
-  --admin-token "publisher-token"
+  --admin-token "publisher-token" \
+  --request-id "ard-e2e-artifact-fetch"
+grep -q '"requestId": "ard-e2e-artifact-fetch"' /tmp/ard-e2e-fixtures.log
 
 bin/ardctl admin list --kind mcp --registry-url "${registry_url}" --admin-token "${admin_token}" --json >/tmp/ard-e2e-list-mcp.json
 grep -q "Agentmemory MCP" /tmp/ard-e2e-list-mcp.json

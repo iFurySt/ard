@@ -60,6 +60,10 @@ Use this document to make secure defaults explicit and legible to agents.
 
 - HTTP responses include `X-Request-ID`.
 - JSON access logs include request ID, method, path, status, latency, and client IP.
+- Outbound catalog/artifact fetches and source digest verification forward
+  `X-Request-ID` for correlation when present in context.
+- `ardctl admin --request-id` and `ARD_REQUEST_ID` set the correlation ID for an admin
+  operation. If neither is set, `ardctl admin` generates one.
 - Access logs must not include admin bearer tokens or request bodies.
 
 ## Metrics

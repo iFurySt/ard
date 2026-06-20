@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ifuryst/ard/internal/ard"
+	"github.com/ifuryst/ard/internal/requestid"
 )
 
 const maxCatalogBytes = 4 << 20
@@ -55,6 +56,7 @@ func loadHTTP(ctx context.Context, source string) (io.ReadCloser, error) {
 	}
 	request.Header.Set("Accept", "application/json")
 	request.Header.Set("User-Agent", "ard/0.1")
+	requestid.SetHeader(request.Header, ctx)
 
 	response, err := client.Do(request)
 	if err != nil {

@@ -91,7 +91,8 @@ artifacts can be pinned and verified with `trustManifest.sourceDigest`. Search s
 client-followed federation referrals, bounded server-side `federation=auto` upstream
 result merging, and opaque `pageToken` pagination for search, list, review, and audit
 responses. The registry also exposes request correlation, JSON access logs, and
-Prometheus-style `/metrics`.
+Prometheus-style `/metrics`. `ardctl admin --request-id` can carry one correlation ID
+across remote artifact fetches and admin API calls.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. CI runs formatting checks, tests,
 builds, and Postgres integration tests.
