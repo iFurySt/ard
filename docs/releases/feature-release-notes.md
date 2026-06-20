@@ -4,6 +4,8 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Testing | Local E2E and compose verification are less likely to fail due to port conflicts or Docker frontend mirror issues. | Switched test scripts to dynamic ports and unique project/container names, and removed the unused Dockerfile frontend directive. |
+| 2026-06-21 | Search | Auto-federated responses no longer expose local-only page tokens as if they were federated cursors. | Suppressed `pageToken` when `federation=auto` merges upstream results, with Postgres integration and real E2E coverage. |
 | 2026-06-21 | Search | Auto-federated search results are ranked by semantic score across local and upstream registries. | Changed `federation=auto` merge behavior from local-first to score-ranked with local duplicate preference, with unit, integration, and real E2E coverage. |
 | 2026-06-21 | Observability | Operators can correlate registry work with upstream services using standard trace context. | Added W3C `traceparent` handling for inbound HTTP, JSON access logs, federation, catalog/artifact fetches, source digest verification, and admin client requests, with unit and real E2E coverage. |
 | 2026-06-21 | Observability | Operators can inspect HTTP latency distribution from the existing metrics endpoint. | Added low-cardinality Prometheus histogram buckets for HTTP request duration by method, route template, and status, with unit and compose coverage. |

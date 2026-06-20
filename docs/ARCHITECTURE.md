@@ -24,8 +24,9 @@ Cobra, Gin, GORM, and Postgres.
   client-followed federation.
 - Federation auto merge: `POST /search` supports `federation=auto` by querying active
   registry referrals, forcing upstream requests to `federation=none`, and merging
-  upstream results with local results by descending semantic `score`. Upstream requests
-  propagate `X-Request-ID` for log correlation.
+  upstream results with local results by descending semantic `score`. When upstream
+  results are merged, the response does not return a local-only `pageToken` as a
+  federated cursor. Upstream requests propagate `X-Request-ID` for log correlation.
 - Catalog ingestion: `ard add catalog` loads local or remote `ai-catalog.json` files,
   validates them, and persists entries.
 - Catalog export: `ardctl export catalog` writes persisted registry entries as a
@@ -146,8 +147,10 @@ boundary without changing HTTP contracts.
   timeout controls. Auto federation currently queries at most three upstream registry
   referrals, uses non-recursive upstream search requests, limits response bodies, and
   returns a score-ranked merged result set with local entries winning duplicate
-  identifiers. Local page tokens are not forwarded to upstream registries. Request IDs
-  are forwarded for correlation; admin tokens are not.
+  identifiers. Local page tokens are not forwarded to upstream registries, and local
+  next-page tokens are suppressed when upstream results participate in the merged
+  response because the implementation does not yet expose a cross-registry cursor.
+  Request IDs are forwarded for correlation; admin tokens are not.
 - Outbound catalog and artifact fetches should propagate request IDs when the initiating
   context carries one. `ardctl admin` generates an operation-level request ID by default
   and accepts `--request-id` / `ARD_REQUEST_ID` when operators want to set it explicitly.

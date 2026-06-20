@@ -1,8 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_name="${ARD_COMPOSE_PROJECT_NAME:-ard-compose-test}"
-registry_port="${ARD_COMPOSE_REGISTRY_PORT:-18080}"
+pick_port() {
+  python3 - <<'PY'
+import socket
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+}
+
+project_name="${ARD_COMPOSE_PROJECT_NAME:-ard-compose-test-$$}"
+registry_port="${ARD_COMPOSE_REGISTRY_PORT:-$(pick_port)}"
 admin_token="${ARD_COMPOSE_ADMIN_TOKEN:-compose-admin-token}"
 registry_url="http://127.0.0.1:${registry_port}"
 

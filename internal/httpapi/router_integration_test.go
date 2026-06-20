@@ -60,7 +60,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 						Type:        ard.TypeMCPServerCard,
 						URL:         "https://upstream.example.com/mcp/weather.json",
 					},
-					Score:  90,
+					Score:  100,
 					Source: "upstream-test",
 				},
 			},
@@ -234,7 +234,7 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 			Text: "weather remote",
 		},
 		Federation: "auto",
-		PageSize:   5,
+		PageSize:   1,
 	})
 	autoRequest := httptest.NewRequest(http.MethodPost, "/search", bytes.NewReader(autoBody))
 	autoRequest.Header.Set("Content-Type", "application/json")
@@ -250,6 +250,9 @@ func TestRouterSearchWithPostgres(t *testing.T) {
 	}
 	if len(auto.Results) == 0 || auto.Results[0].Identifier != "urn:air:upstream.example.com:server:remote-weather" {
 		t.Fatalf("expected high-scoring upstream result first, got %#v", auto.Results)
+	}
+	if auto.PageToken != "" {
+		t.Fatalf("expected no local-only page token in auto-federated response, got %q", auto.PageToken)
 	}
 	foundRemote := false
 	for _, result := range auto.Results {

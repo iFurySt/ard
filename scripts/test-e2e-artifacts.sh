@@ -1,11 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-postgres_container="${ARD_E2E_POSTGRES_CONTAINER:-ard-e2e-postgres}"
-postgres_port="${ARD_E2E_POSTGRES_PORT:-55440}"
-fixture_port="${ARD_E2E_FIXTURE_PORT:-18087}"
-registry_port="${ARD_E2E_REGISTRY_PORT:-18088}"
-upstream_port="${ARD_E2E_UPSTREAM_PORT:-18089}"
+pick_port() {
+  python3 - <<'PY'
+import socket
+with socket.socket() as sock:
+    sock.bind(("127.0.0.1", 0))
+    print(sock.getsockname()[1])
+PY
+}
+
+postgres_container="${ARD_E2E_POSTGRES_CONTAINER:-ard-e2e-postgres-$$}"
+postgres_port="${ARD_E2E_POSTGRES_PORT:-$(pick_port)}"
+fixture_port="${ARD_E2E_FIXTURE_PORT:-$(pick_port)}"
+registry_port="${ARD_E2E_REGISTRY_PORT:-$(pick_port)}"
+upstream_port="${ARD_E2E_UPSTREAM_PORT:-$(pick_port)}"
 admin_token="${ARD_E2E_ADMIN_TOKEN:-test-token}"
 database_url="postgres://ard:ard@127.0.0.1:${postgres_port}/ard?sslmode=disable"
 registry_url="http://127.0.0.1:${registry_port}"
@@ -317,6 +326,13 @@ data = json.load(open("/tmp/ard-e2e-auto-ranked-search.json"))
 first = data["results"][0]["displayName"]
 if first != "Federated Weather MCP":
     raise SystemExit(f"expected upstream ranked first, got {first!r}")
+PY
+bin/ardctl search agent --registry-url "${registry_url}" --kind mcp --federation auto --limit 1 --json >/tmp/ard-e2e-auto-page-token-search.json
+python3 - <<'PY'
+import json
+data = json.load(open("/tmp/ard-e2e-auto-page-token-search.json"))
+if data.get("pageToken"):
+    raise SystemExit(f"expected no local-only page token for auto federation, got {data['pageToken']!r}")
 PY
 curl -fsS \
   -H "Content-Type: application/json" \

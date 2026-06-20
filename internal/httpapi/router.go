@@ -166,6 +166,9 @@ func (server Server) search(context *gin.Context) {
 		}
 		upstreamResults := federation.NewClient().Search(context.Request.Context(), referrals, request)
 		response.Results = mergeSearchResults(page.Results, upstreamResults, request.NormalizedPageSize())
+		if len(upstreamResults) > 0 {
+			response.PageToken = ""
+		}
 	}
 	context.JSON(http.StatusOK, response)
 }

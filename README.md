@@ -89,8 +89,9 @@ hash-chained and can be verified through `ardctl admin audit --verify-chain`. Se
 deployments can use a single admin token or reloadable role-scoped admin token files. URL
 artifacts can be pinned and verified with `trustManifest.sourceDigest`. Search supports
 client-followed federation referrals, bounded server-side `federation=auto` upstream
-score-ranked result merging, and opaque `pageToken` pagination for search, list, review,
-and audit responses. The registry also exposes request correlation, JSON access logs, and
+score-ranked result merging without exposing local-only page tokens as federated cursors,
+and opaque `pageToken` pagination for local search, list, review, and audit responses.
+The registry also exposes request correlation, JSON access logs, and
 W3C `traceparent` propagation, plus Prometheus-style `/metrics` with HTTP duration
 histograms and Go runtime gauges. `ardctl admin --request-id` can carry one correlation
 ID across remote artifact fetches and admin API calls.
