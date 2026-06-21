@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Release | Maintainers can rehearse the public release path before creating a tag. | Added `VERSION=v0.1.0 make release-dry-run` to validate release version shape, formatting, public SDK/CLI surface, workflow invariants, external Go SDK import coverage, package checksums, archive contents, and packaged binary version metadata without publishing. |
 | 2026-06-21 | SDK | Adopters get a stricter pre-release guard for accidental Go SDK or CLI surface drift. | Added `make check-public-surface` to validate exported `pkg/ard` and `pkg/client` symbols plus `ard`, `ardctl`, and `ard-server` command/flag surfaces, and wired it into CI and workflow invariant checks. |
 | 2026-06-21 | Observability | Operators can send registry request traces to an OpenTelemetry collector. | Added optional OTLP/HTTP trace export through `ARD_OTLP_TRACES_ENDPOINT` / `--otlp-traces-endpoint`, documented the local observability workflow, and extended real E2E coverage with a local OTLP capture endpoint. |
 | 2026-06-21 | Testing | Maintainers can catch live artifact drift without making every pull request depend on external services. | Added a manual and weekly GitHub Actions E2E workflow for `make test-e2e`, pinned its actions, and extended workflow invariant checks to require the live artifact gate. |

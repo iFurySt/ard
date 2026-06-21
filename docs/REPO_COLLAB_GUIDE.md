@@ -51,6 +51,9 @@ This document defines the default collaboration model for an agent-first reposit
 - `make check-public-surface` validates the expected exported Go SDK symbols and CLI
   command/flag surface before public releases.
 - `make check-workflows` validates expected CI, E2E, and release workflow invariants.
+- `VERSION=v0.1.0 make release-dry-run` validates the pre-tag release path by checking
+  formatting, public API/CLI surface, workflow invariants, external Go SDK import,
+  package checksums, archive contents, and local packaged binary version metadata.
 - Pushing a `v*` tag runs the release workflow, publishes `dist/` artifacts to GitHub
   Releases, and generates signed GitHub artifact attestations for provenance plus SBOM.
   Local container, binary archive, checksum, and release workflows are documented in

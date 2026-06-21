@@ -23,7 +23,9 @@ Cobra, Gin, GORM, and Postgres.
 - Binary distribution: `make package` produces versioned Linux/macOS amd64/arm64
   archives for `ard`, `ardctl`, and `ard-server`, plus an SPDX SBOM and SHA-256 checksum
   manifest. Build metadata is embedded into all packaged binaries and exposed through
-  CLI version commands, server startup logs, and `/health`.
+  CLI version commands, server startup logs, and `/health`. `make release-dry-run`
+  exercises the same packaging path with pre-tag public surface, workflow, SDK,
+  checksum, archive-content, and packaged-binary version checks.
 - Release publishing: pushing a `v*` tag runs the GitHub Actions release workflow, checks
   package checksums, generates signed GitHub artifact attestations for release
   provenance and SBOM, and publishes the `dist/` artifacts to a GitHub release.

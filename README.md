@@ -74,6 +74,7 @@ ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --
 make build
 make sbom
 make package
+VERSION=v0.1.0 make release-dry-run
 make test-integration
 make test-e2e
 make test-compose
@@ -165,6 +166,8 @@ across remote artifact fetches and admin API calls.
 It builds three entry points: `ard` for the combined toolkit, `ardctl` for CLI/client
 operations, and `ard-server` for the registry server. `make package` creates Linux/macOS
 release archives with embedded version metadata, an SPDX SBOM, and SHA-256 checksums.
+`make release-dry-run` verifies the public surface, workflows, external Go SDK import,
+release archives, checksums, and local packaged binary versions before a public tag.
 `ard version`, `ardctl version`, `ard-server --version`, startup logs, and `/health`
 expose the build version, commit, and build date. CI runs formatting checks, workflow
 checks, public surface checks, tests, public Go client import checks, builds, release

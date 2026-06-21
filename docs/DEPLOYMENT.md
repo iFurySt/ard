@@ -50,6 +50,26 @@ VERSION=v0.1.0 PLATFORMS='linux/amd64 darwin/arm64' make package
 VERSION=v0.1.0 COMMIT="$(git rev-parse --short=12 HEAD)" make build
 ```
 
+## Release Dry Run
+
+Before pushing a public tag, run:
+
+```sh
+VERSION=v0.1.0 make release-dry-run
+```
+
+The dry run validates the release version shape, formatting, public Go SDK and CLI
+surface, workflow invariants, external Go SDK import coverage, release archive
+generation, SHA-256 checksum verification, expected archive contents, and embedded
+version metadata in the packaged binaries for the local OS/architecture. It does not
+create a git tag, publish a GitHub release, or request artifact attestations.
+
+Use `PLATFORMS` to narrow local iterations while preserving the same package path:
+
+```sh
+VERSION=v0.1.0 PLATFORMS="$(go env GOOS)/$(go env GOARCH)" make release-dry-run
+```
+
 ## Release Publishing
 
 Push a `v*` tag to publish a GitHub release:
