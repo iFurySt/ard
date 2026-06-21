@@ -40,12 +40,15 @@ This document defines the default collaboration model for an agent-first reposit
 - `make test-e2e` runs a heavier local E2E flow with live MCP, Skill, and OpenAPI
   artifacts, policy-gate checks, plus the checked-in A2A fixture. It is intentionally
   outside the default CI path because it depends on external network availability.
+- `.github/workflows/e2e.yml` runs the same `make test-e2e` gate on manual dispatch and
+  on a weekly schedule, so live artifact drift is visible without making pull requests
+  depend on external services.
 - `make test-compose` builds the registry image and verifies the Docker Compose
   deployment path against Postgres.
 - `make package` builds versioned Linux/macOS binary archives for all entrypoints and
   writes an SPDX SBOM plus SHA-256 checksums under `dist/`; CI runs it as a release
   packaging gate.
-- `make check-workflows` validates expected CI and release workflow invariants.
+- `make check-workflows` validates expected CI, E2E, and release workflow invariants.
 - Pushing a `v*` tag runs the release workflow, publishes `dist/` artifacts to GitHub
   Releases, and generates signed GitHub artifact attestations for provenance plus SBOM.
   Local container, binary archive, checksum, and release workflows are documented in

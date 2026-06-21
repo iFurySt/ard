@@ -43,6 +43,54 @@ jobs:
 	}
 }
 
+func TestE2EWorkflowShape(t *testing.T) {
+	t.Parallel()
+
+	root := parseWorkflow(t, `
+name: E2E
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+permissions:
+  contents: read
+jobs:
+  e2e:
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+      - run: make test-e2e
+`)
+
+	if err := checkE2E(root); err != nil {
+		t.Fatalf("expected E2E workflow to pass: %v", err)
+	}
+}
+
+func TestE2EWorkflowRequiresRealArtifactGate(t *testing.T) {
+	t.Parallel()
+
+	root := parseWorkflow(t, `
+name: E2E
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 3 * * 1"
+permissions:
+  contents: read
+jobs:
+  e2e:
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff
+      - run: make test
+`)
+
+	if err := checkE2E(root); err == nil || !strings.Contains(err.Error(), "make test-e2e") {
+		t.Fatalf("expected missing make test-e2e error, got %v", err)
+	}
+}
+
 func TestReleaseWorkflowRequiresSBOMAttestation(t *testing.T) {
 	t.Parallel()
 

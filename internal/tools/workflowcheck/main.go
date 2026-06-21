@@ -32,6 +32,7 @@ func run() error {
 	}
 
 	foundCI := false
+	foundE2E := false
 	foundRelease := false
 
 	for _, path := range paths {
@@ -49,6 +50,12 @@ func run() error {
 				return fmt.Errorf("%s: %w", path, err)
 			}
 		}
+		if filepath.Base(path) == "e2e.yml" {
+			foundE2E = true
+			if err := checkE2E(root); err != nil {
+				return fmt.Errorf("%s: %w", path, err)
+			}
+		}
 		if filepath.Base(path) == "release.yml" {
 			foundRelease = true
 			if err := checkRelease(root); err != nil {
@@ -58,6 +65,9 @@ func run() error {
 	}
 	if !foundCI {
 		return fmt.Errorf("missing .github/workflows/ci.yml")
+	}
+	if !foundE2E {
+		return fmt.Errorf("missing .github/workflows/e2e.yml")
 	}
 	if !foundRelease {
 		return fmt.Errorf("missing .github/workflows/release.yml")
@@ -89,6 +99,34 @@ func checkCI(root *yaml.Node) error {
 	if !hasRunStep(steps, "make package") {
 		return fmt.Errorf("CI must run make package")
 	}
+	return nil
+}
+
+func checkE2E(root *yaml.Node) error {
+	if mappingValue(mappingValue(root, "on"), "workflow_dispatch") == nil {
+		return fmt.Errorf("E2E workflow must support manual workflow_dispatch runs")
+	}
+	if !hasScheduleCron(root) {
+		return fmt.Errorf("E2E workflow must include a scheduled run")
+	}
+	if scalarValue(mappingValue(mappingValue(root, "permissions"), "contents")) != "read" {
+		return fmt.Errorf("E2E workflow must use read-only contents permission")
+	}
+
+	steps := jobSteps(root, "e2e")
+	if steps == nil {
+		return fmt.Errorf("missing e2e job steps")
+	}
+	if !hasUsesStep(steps, checkoutAction) {
+		return fmt.Errorf("E2E job must use pinned checkout action")
+	}
+	if !hasUsesStep(steps, setupGoAction) {
+		return fmt.Errorf("E2E job must use pinned setup-go action")
+	}
+	if !hasRunStep(steps, "make test-e2e") {
+		return fmt.Errorf("E2E job must run make test-e2e")
+	}
+
 	return nil
 }
 
@@ -135,6 +173,16 @@ func checkRelease(root *yaml.Node) error {
 	}
 
 	return nil
+}
+
+func hasScheduleCron(root *yaml.Node) bool {
+	on := mappingValue(root, "on")
+	for _, schedule := range sequenceNodes(mappingValue(on, "schedule")) {
+		if scalarValue(mappingValue(schedule, "cron")) != "" {
+			return true
+		}
+	}
+	return false
 }
 
 func releaseTagTrigger(root *yaml.Node) bool {
@@ -225,6 +273,13 @@ func sequenceValues(node *yaml.Node) []string {
 		values = append(values, scalarValue(child))
 	}
 	return values
+}
+
+func sequenceNodes(node *yaml.Node) []*yaml.Node {
+	if node == nil || node.Kind != yaml.SequenceNode {
+		return nil
+	}
+	return node.Content
 }
 
 func scalarValue(node *yaml.Node) string {

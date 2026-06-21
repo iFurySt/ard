@@ -64,6 +64,14 @@ The release workflow packages the binaries with `VERSION` set to the tag name an
 artifact attestations for release provenance and the SPDX SBOM, and uploads the `dist/`
 artifacts to the GitHub release.
 
+## Scheduled E2E
+
+`.github/workflows/e2e.yml` can be run manually and also runs weekly. It executes
+`make test-e2e`, which starts a temporary Postgres-backed registry, imports live MCP,
+Skill, and OpenAPI artifacts, checks the A2A fixture, exercises policy, federation,
+health, metrics, and the external Go admin SDK flow, then tears down its local
+containers and processes.
+
 Consumers can verify a downloaded archive with:
 
 ```sh

@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Testing | Maintainers can catch live artifact drift without making every pull request depend on external services. | Added a manual and weekly GitHub Actions E2E workflow for `make test-e2e`, pinned its actions, and extended workflow invariant checks to require the live artifact gate. |
 | 2026-06-21 | Observability | Operators can inspect Prometheus metrics from `ardctl` without using curl. | Added `ardctl metrics` / `ard metrics` for the public `/metrics` endpoint and exposed `Metrics` in the public Go client, with unit, external SDK, and real E2E coverage. |
 | 2026-06-21 | CLI | Operators can check registry health from `ardctl` without using curl. | Added `ardctl health` / `ard health` for the public `/health` endpoint with text and JSON output, plus unit and real E2E coverage against a live registry. |
 | 2026-06-21 | Security | Enterprises can verify signed trust metadata against explicitly hosted JWKS keys. | Added `ard verify catalog --jws-remote-jwks` for HTTPS JWKS OKP/Ed25519 signature trust anchors, with remote key use constrained to entries whose `trustManifest.identity` trust domain matches the JWKS host. |

@@ -18,8 +18,10 @@ The remaining defaults are:
 - Pushing a `v*` tag publishes the `dist/` artifacts to GitHub Releases.
 - The release workflow uses GitHub artifact attestations to sign release provenance and
   the SPDX SBOM predicate for archive subjects.
-- `make check-workflows` parses local workflow YAML and fails if release permissions,
-  tag triggers, attestation steps, checksum verification, or release publishing drift.
+- `make check-workflows` parses local workflow YAML and fails if CI, E2E, or release
+  workflow invariants drift, including release permissions, tag triggers, attestation
+  steps, checksum verification, release publishing, E2E triggers, pinned E2E actions,
+  or the live artifact E2E gate.
 - New release workflow actions are pinned to immutable commit SHAs; updating them should
   update `internal/tools/workflowcheck` in the same change.
 
@@ -33,7 +35,9 @@ The remaining defaults are:
 - Dependency Review is available for public repositories and private repositories with GitHub Advanced Security.
 - There is no automated dependency audit right now.
 - Signed attestations are generated only by the `v*` tag release workflow. Branch CI
-  validates workflow shape and package output but does not mint attestations.
+  validates workflow shape and package output but does not mint attestations. The E2E
+  workflow validates live artifact onboarding on manual dispatch and a weekly schedule
+  without producing release attestations.
 - OpenSSF Scorecard is intentionally not enabled by default because a new template repository has no real branch protection, release history, or SAST posture to score. Add it back after repository rules are configured.
 
 ## What To Do When The Project Becomes Real
