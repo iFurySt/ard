@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Observability | Operators can inspect Prometheus metrics from `ardctl` without using curl. | Added `ardctl metrics` / `ard metrics` for the public `/metrics` endpoint and exposed `Metrics` in the public Go client, with unit, external SDK, and real E2E coverage. |
 | 2026-06-21 | CLI | Operators can check registry health from `ardctl` without using curl. | Added `ardctl health` / `ard health` for the public `/health` endpoint with text and JSON output, plus unit and real E2E coverage against a live registry. |
 | 2026-06-21 | Security | Enterprises can verify signed trust metadata against explicitly hosted JWKS keys. | Added `ard verify catalog --jws-remote-jwks` for HTTPS JWKS OKP/Ed25519 signature trust anchors, with remote key use constrained to entries whose `trustManifest.identity` trust domain matches the JWKS host. |
 | 2026-06-21 | Governance | Teams can check policy compliance in CI before importing a catalog. | Added `ard verify catalog --policy-file` support through the existing root policy flag, returning policy evaluations in JSON output and failing on policy denial without opening the database. |

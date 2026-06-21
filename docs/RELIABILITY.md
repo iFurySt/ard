@@ -47,6 +47,8 @@ Define the operational bar for the repository here.
 ## Metrics
 
 - `GET /metrics` returns Prometheus text format without requiring admin authentication.
+- `ardctl metrics --registry-url <url>` calls the public metrics endpoint and prints the
+  raw Prometheus text for local inspection or script handoff.
 - Metrics include registry uptime, in-flight HTTP requests, request totals, and HTTP
   duration histograms by method, route template, and status.
 - Runtime metrics include goroutine count, heap allocation, heap system memory, next GC

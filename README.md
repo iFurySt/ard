@@ -35,6 +35,7 @@ ard add skill https://example.com/skills/open-browser-use/SKILL.md
 ard add openapi https://example.com/openapi.json
 ard crawl
 ardctl health --registry-url https://registry.example.com --json
+ardctl metrics --registry-url https://registry.example.com
 ardctl list --kind mcp
 ardctl list --filter "publisherId = 'github.com'" --order-by "displayName DESC"
 ardctl list --filter "tags = 'skill' AND metadata.adapter = 'skill'"
@@ -105,6 +106,7 @@ bin/ard-server --database-url "$DATABASE_URL" --admin-token "$ARD_ADMIN_TOKEN"
 
 # terminal 2
 bin/ardctl health --registry-url http://127.0.0.1:8080 --json
+bin/ardctl metrics --registry-url http://127.0.0.1:8080
 bin/ardctl browse --registry-url http://127.0.0.1:8080 --filter "type = 'application/mcp-server-card+json'" --json
 bin/ardctl search "weather forecast" --kind mcp --json
 bin/ardctl admin list --admin-token "$ARD_ADMIN_TOKEN"

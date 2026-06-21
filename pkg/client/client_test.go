@@ -52,6 +52,12 @@ func TestClientPublicRegistryFlow(t *testing.T) {
 			_, _ = response.Write([]byte(`{"specVersion":"1.0","host":{"displayName":"Example"},"entries":[{"identifier":"urn:air:example.com:server:weather","displayName":"Weather","type":"application/mcp-server-card+json","url":"https://example.com/mcp.json"}]}`))
 		case "/health":
 			_, _ = response.Write([]byte(`{"status":"ok","entries":1,"version":"v0.1.0","commit":"abc123","buildDate":"2026-06-21T00:00:00Z"}`))
+		case "/metrics":
+			if got := request.Header.Get("Accept"); got != "text/plain" {
+				t.Fatalf("unexpected metrics accept header: %s", got)
+			}
+			response.Header().Set("Content-Type", "text/plain; version=0.0.4")
+			_, _ = response.Write([]byte("# TYPE ard_http_requests_total counter\nard_http_requests_total 1\n"))
 		default:
 			http.NotFound(response, request)
 		}
@@ -112,6 +118,13 @@ func TestClientPublicRegistryFlow(t *testing.T) {
 	}
 	if health.Status != "ok" || health.Entries != 1 || health.Version != "v0.1.0" || health.Commit != "abc123" {
 		t.Fatalf("unexpected health response: %#v", health)
+	}
+	metrics, err := registry.Metrics(context.Background())
+	if err != nil {
+		t.Fatalf("metrics: %v", err)
+	}
+	if !strings.Contains(metrics, "ard_http_requests_total") {
+		t.Fatalf("unexpected metrics response: %s", metrics)
 	}
 }
 

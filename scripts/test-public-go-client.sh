@@ -51,6 +51,8 @@ func TestPublicGoClientImportsFromExternalModule(t *testing.T) {
 			_, _ = response.Write([]byte(`{"specVersion":"1.0","host":{"displayName":"Example"},"entries":[{"identifier":"urn:air:example.com:server:weather","displayName":"Weather","type":"application/mcp-server-card+json","url":"https://example.com/mcp.json"}]}`))
 		case request.URL.Path == "/health":
 			_, _ = response.Write([]byte(`{"status":"ok","entries":1,"version":"v0.1.0","commit":"abc123","buildDate":"2026-06-21T00:00:00Z"}`))
+		case request.URL.Path == "/metrics":
+			_, _ = response.Write([]byte("# TYPE ard_http_requests_total counter\nard_http_requests_total 1\n"))
 		case request.Method == http.MethodGet && request.URL.Path == "/admin/entries":
 			if request.Header.Get("Authorization") != "Bearer token" {
 				http.Error(response, "missing admin token", http.StatusUnauthorized)
@@ -162,6 +164,13 @@ func TestPublicGoClientImportsFromExternalModule(t *testing.T) {
 	}
 	if health.Status != "ok" || health.Commit != "abc123" {
 		t.Fatalf("unexpected health response: %#v", health)
+	}
+	metrics, err := registry.Metrics(context.Background())
+	if err != nil {
+		t.Fatalf("metrics: %v", err)
+	}
+	if !strings.Contains(metrics, "ard_http_requests_total") {
+		t.Fatalf("unexpected metrics response: %s", metrics)
 	}
 	if err := ard.ValidateCatalogEntry(catalog.Entries[0]); err != nil {
 		t.Fatalf("validate catalog entry: %v", err)

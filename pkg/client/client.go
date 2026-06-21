@@ -139,24 +139,47 @@ func (client *Client) Health(ctx context.Context) (HealthResponse, error) {
 	return response, err
 }
 
+func (client *Client) Metrics(ctx context.Context) (string, error) {
+	raw, err := client.doRaw(ctx, http.MethodGet, "/metrics", nil, nil)
+	return string(raw), err
+}
+
 func (client *Client) doJSON(ctx context.Context, method string, path string, query url.Values, body any, target any) error {
+	raw, err := client.doRaw(ctx, method, path, query, body)
+	if err != nil {
+		return err
+	}
+	if target == nil {
+		return nil
+	}
+	if err := json.Unmarshal(raw, target); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (client *Client) doRaw(ctx context.Context, method string, path string, query url.Values, body any) ([]byte, error) {
 	var reader io.Reader
 	if body != nil {
 		encoded, err := json.Marshal(body)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		reader = bytes.NewReader(encoded)
 	}
 
 	request, err := http.NewRequestWithContext(ctx, method, client.endpoint(path, query), reader)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if body != nil {
 		request.Header.Set("Content-Type", "application/json")
 	}
-	request.Header.Set("Accept", "application/json")
+	if path == "/metrics" {
+		request.Header.Set("Accept", "text/plain")
+	} else {
+		request.Header.Set("Accept", "application/json")
+	}
 	request.Header.Set("User-Agent", client.userAgent)
 	for name, values := range client.headers {
 		for _, value := range values {
@@ -166,29 +189,23 @@ func (client *Client) doJSON(ctx context.Context, method string, path string, qu
 
 	response, err := client.httpClient.Do(request)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	defer response.Body.Close()
 
 	raw, err := io.ReadAll(response.Body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if response.StatusCode < 200 || response.StatusCode > 299 {
-		return HTTPError{
+		return nil, HTTPError{
 			Method:     method,
 			URL:        request.URL.String(),
 			StatusCode: response.StatusCode,
 			Body:       raw,
 		}
 	}
-	if target == nil {
-		return nil
-	}
-	if err := json.Unmarshal(raw, target); err != nil {
-		return err
-	}
-	return nil
+	return raw, nil
 }
 
 func (client *Client) endpoint(path string, query url.Values) string {

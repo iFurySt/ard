@@ -9,7 +9,7 @@ Cobra, Gin, GORM, and Postgres.
   catalog endpoints through Gin, plus optional token-protected admin routes.
 - CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
   `add skill`, `add openapi`, `admin`, `browse`, `crawl`, `export catalog`, `health`,
-  `list`, `remove`, `verify catalog`, `version`, and `search` today.
+  `list`, `metrics`, `remove`, `verify catalog`, `version`, and `search` today.
 - Entrypoints: `cmd/ard` ships the combined toolkit, `cmd/ardctl` ships client and
   management operations without server startup, and `cmd/ard-server` ships a dedicated
   registry server binary.
@@ -265,8 +265,9 @@ changing HTTP contracts.
   module.
 - CLI equivalents: `serve`, `add catalog`, `add mcp`, `add a2a`, `add skill`,
   `add openapi`, `crawl`, `admin`, `browse`, `export catalog`, `health`, `list`,
-  `remove`, `verify catalog`, `version`, and `search` are implemented. `ardctl health`
-  calls public `/health` without admin credentials. `ardctl browse` calls public
+  `metrics`, `remove`, `verify catalog`, `version`, and `search` are implemented.
+  `ardctl health` calls public `/health` without admin credentials, and `ardctl metrics`
+  calls public `/metrics` for Prometheus text output. `ardctl browse` calls public
   `/agents` with filter/order/pagination options. `ardctl list --filter` and
   `--order-by` reuse the same deterministic browse parser as public `/agents`.
   `ardctl admin status` manages remote entry lifecycle state, `ardctl admin review

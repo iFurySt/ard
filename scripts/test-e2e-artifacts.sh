@@ -256,6 +256,9 @@ done
 bin/ardctl health --registry-url "${registry_url}" --json >/tmp/ard-e2e-health.json
 grep -q '"status": "ok"' /tmp/ard-e2e-health.json
 grep -q '"entries": 0' /tmp/ard-e2e-health.json
+bin/ardctl metrics --registry-url "${registry_url}" >/tmp/ard-e2e-metrics.txt
+grep -q 'ard_http_requests_total' /tmp/ard-e2e-metrics.txt
+grep -q 'ard_runtime_goroutines' /tmp/ard-e2e-metrics.txt
 
 fetch_with_retry "${mcp_card_url}" "${mcp_card_file}"
 if ! fetch_with_retry "${skill_url}" "${skill_file}"; then

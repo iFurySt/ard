@@ -45,10 +45,12 @@ Explicitly unstable surface:
 Additive response fields are allowed before `v1.0.0`. For example, `pkg/client`
 `HealthResponse` includes optional `version`, `commit`, and `buildDate` fields so
 operators can identify the registry binary answering a request.
+`Metrics` returns raw Prometheus text from the public `/metrics` endpoint so callers do
+not have to depend on an unstable parsed metrics model.
 
 ## Validation
 
 `make test-public-go-client` creates a temporary external module, imports the public SDK,
-and exercises the public discovery, catalog, health, explore, admin list/upsert/status,
-review, audit, delete, validation helper, publisher helper, and `HTTPError` surfaces.
-CI runs this check on every push and pull request.
+and exercises the public discovery, catalog, health, metrics, explore, admin
+list/upsert/status, review, audit, delete, validation helper, publisher helper, and
+`HTTPError` surfaces. CI runs this check on every push and pull request.
