@@ -155,6 +155,113 @@ func TestLoadRemoteTrustAnchorsRejectsNonHTTPSURL(t *testing.T) {
 	}
 }
 
+func TestDiscoverOIDCTrustAnchorsVerifiesProviderJWKS(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		switch request.URL.Path {
+		case "/issuer/.well-known/openid-configuration":
+			response.Header().Set("Content-Type", "application/json")
+			_, _ = response.Write([]byte(`{
+  "issuer": "https://` + request.Host + `/issuer",
+  "jwks_uri": "https://` + request.Host + `/jwks.json"
+}`))
+		case "/jwks.json":
+			response.Header().Set("Content-Type", "application/jwk-set+json")
+			_, _ = response.Write([]byte(`{
+  "keys": [
+    {
+      "kty": "OKP",
+      "crv": "Ed25519",
+      "kid": "oidc-ed25519",
+      "alg": "EdDSA",
+      "x": "` + base64.RawURLEncoding.EncodeToString(publicKey) + `"
+    }
+  ]
+}`))
+		default:
+			t.Fatalf("unexpected OIDC discovery path: %s", request.URL.Path)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	identity := server.URL + "/issuer"
+	trustManifest := map[string]any{
+		"identity":     identity,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "oidc-ed25519", trustManifest, privateKey)
+	catalog := signedCatalog(trustManifest)
+	anchors, err := DiscoverOIDCTrustAnchors(context.Background(), catalog, server.Client())
+	if err != nil {
+		t.Fatalf("discover OIDC trust anchors: %v", err)
+	}
+	results, err := VerifySignatures(catalog, SignatureOptions{TrustAnchors: anchors})
+	if err != nil {
+		t.Fatalf("verify signature with OIDC trust anchors: %v", err)
+	}
+	if len(results) != 1 || !results[0].Verified || results[0].KeyID != "oidc-ed25519" || results[0].KeySource != server.URL+"/jwks.json" {
+		t.Fatalf("unexpected results: %#v", results)
+	}
+}
+
+func TestDiscoverOIDCTrustAnchorsRejectsIssuerMismatch(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		response.Header().Set("Content-Type", "application/json")
+		_, _ = response.Write([]byte(`{
+  "issuer": "https://evil.example/issuer",
+  "jwks_uri": "https://` + request.Host + `/jwks.json"
+}`))
+	}))
+	t.Cleanup(server.Close)
+
+	identity := server.URL + "/issuer"
+	trustManifest := map[string]any{
+		"identity":     identity,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "oidc-ed25519", trustManifest, privateKey)
+	_, err = DiscoverOIDCTrustAnchors(context.Background(), signedCatalog(trustManifest), server.Client())
+	if err == nil || !strings.Contains(err.Error(), "OIDC issuer") {
+		t.Fatalf("expected issuer mismatch, got %v", err)
+	}
+}
+
+func TestOIDCConfigurationURL(t *testing.T) {
+	tests := []struct {
+		identity string
+		want     string
+	}{
+		{
+			identity: "https://example.com",
+			want:     "https://example.com/.well-known/openid-configuration",
+		},
+		{
+			identity: "https://example.com/tenant",
+			want:     "https://example.com/tenant/.well-known/openid-configuration",
+		},
+		{
+			identity: "https://example.com/tenant/",
+			want:     "https://example.com/tenant/.well-known/openid-configuration",
+		},
+	}
+	for _, tt := range tests {
+		_, got, _, ok, err := oidcConfigurationURL(tt.identity)
+		if err != nil {
+			t.Fatalf("OIDC configuration URL for %s: %v", tt.identity, err)
+		}
+		if !ok || got != tt.want {
+			t.Fatalf("OIDC configuration URL for %s = %q, %v; want %q, true", tt.identity, got, ok, tt.want)
+		}
+	}
+}
+
 func TestDiscoverDIDWebTrustAnchorsVerifiesDIDDocumentKey(t *testing.T) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

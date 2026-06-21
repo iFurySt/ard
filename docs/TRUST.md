@@ -43,6 +43,7 @@ ard verify catalog ./ai-catalog.json --require-provenance-digests
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-remote-jwks https://example.com/.well-known/jwks.json
 ard verify catalog ./ai-catalog.json --jws-discover-did-web
+ard verify catalog ./ai-catalog.json --jws-discover-oidc
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
 
@@ -120,6 +121,15 @@ entry identity when those fields are present, and then runs the same detached JW
 verification path. This flag is opt-in and only covers `did:web`; it does not resolve
 other DID methods.
 
+`--jws-discover-oidc` performs explicit automatic key discovery for entries whose signed
+`trustManifest.identity` is an HTTPS issuer URL. It fetches the issuer's OpenID Provider
+configuration at `<issuer>/.well-known/openid-configuration`, validates that the returned
+`issuer` exactly matches the normalized entry identity, reads `jwks_uri`, fetches that
+JWKS, accepts only OKP/Ed25519 keys, and then runs the same detached JWS verification
+path. This follows OpenID Connect Discovery's required `issuer` and HTTPS `jwks_uri`
+metadata fields:
+https://openid.net/specs/openid-connect-discovery-1_0.html
+
 ## Current Scope
 
 - Implemented: `trustManifest.identity` presence validation.
@@ -166,12 +176,14 @@ other DID methods.
 - Implemented: opt-in `did:web` DID document key discovery through
   `ard verify catalog --jws-discover-did-web` for DID documents that expose
   `verificationMethod[].publicKeyJwk` OKP/Ed25519 keys.
+- Implemented: opt-in OpenID Connect issuer discovery through
+  `ard verify catalog --jws-discover-oidc`, validating the discovered `issuer` and
+  fetching OKP/Ed25519 keys from `jwks_uri`.
 - Implemented: strict catalog signature requirements with
   `ard verify catalog --require-jws-signatures`.
 - Implemented: admin audit event hash chaining and chain verification.
 - Not implemented yet: attestation truth, auditor trust, or freshness verification.
-- Not implemented yet: non-`did:web` DID methods, SPIFFE, certificate, or OIDC key
-  discovery.
+- Not implemented yet: non-`did:web` DID methods, SPIFFE, or certificate key discovery.
 - Not implemented yet: externally anchored or signed audit trails.
 
 Identity trust-domain matching is a metadata consistency check. It rejects entries that
@@ -189,8 +201,10 @@ Provenance digest verification proves byte integrity for fetched HTTP(S) provena
 sources only. It does not resolve URN source identifiers, prove lineage truth, prove who
 published the source, or decide whether a provenance relation is semantically valid.
 
-JWS verification proves the configured, explicitly fetched, or `did:web`-discovered
-Ed25519 key signed the trust manifest bytes that `ard` verified. `did:web` discovery
-also proves that the key was advertised by the fetched DID document at verification
-time. It does not prove claim truth, validate SPIFFE identities, validate certificates,
-run OIDC discovery, or decide whether the signed claims are true.
+JWS verification proves the configured, explicitly fetched, `did:web`-discovered, or
+OIDC-discovered Ed25519 key signed the trust manifest bytes that `ard` verified.
+`did:web` discovery proves that the key was advertised by the fetched DID document at
+verification time. OIDC discovery proves that the key was advertised by the issuer's
+OpenID Provider metadata and JWKS at verification time. Neither path proves claim truth,
+validates SPIFFE identities, validates certificates beyond HTTPS transport validation, or
+decides whether the signed claims are true.

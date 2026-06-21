@@ -32,6 +32,7 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 	var jwsTrustAnchors string
 	var jwsRemoteJWKS []string
 	var jwsDiscoverDIDWeb bool
+	var jwsDiscoverOIDC bool
 	var requireJWSSignatures bool
 	command := &cobra.Command{
 		Use:   "catalog SOURCE",
@@ -74,7 +75,7 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 				provenanceDigestResults = results
 			}
 			signatureResults := []verify.SignatureResult{}
-			if jwsTrustAnchors != "" || len(jwsRemoteJWKS) > 0 || jwsDiscoverDIDWeb || requireJWSSignatures {
+			if jwsTrustAnchors != "" || len(jwsRemoteJWKS) > 0 || jwsDiscoverDIDWeb || jwsDiscoverOIDC || requireJWSSignatures {
 				anchorSets := []verify.TrustAnchors{}
 				if jwsTrustAnchors != "" {
 					anchors, err := verify.LoadTrustAnchors(jwsTrustAnchors)
@@ -97,9 +98,16 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 					}
 					anchorSets = append(anchorSets, anchors)
 				}
+				if jwsDiscoverOIDC {
+					anchors, err := verify.DiscoverOIDCTrustAnchors(ctx, loadedCatalog, nil)
+					if err != nil {
+						return fmt.Errorf("discover OIDC trust anchors: %w", err)
+					}
+					anchorSets = append(anchorSets, anchors)
+				}
 				anchors := verify.MergeTrustAnchors(anchorSets...)
 				if len(anchors.Keys) == 0 {
-					return fmt.Errorf("--jws-trust-anchors, --jws-remote-jwks, or --jws-discover-did-web is required when verifying JWS signatures")
+					return fmt.Errorf("--jws-trust-anchors, --jws-remote-jwks, --jws-discover-did-web, or --jws-discover-oidc is required when verifying JWS signatures")
 				}
 				results, err := verify.VerifySignatures(loadedCatalog, verify.SignatureOptions{
 					RequireSignatures: requireJWSSignatures,
@@ -159,7 +167,7 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 					payload["provenanceDigestsRequired"] = true
 					payload["provenanceDigests"] = provenanceDigestResults
 				}
-				if jwsTrustAnchors != "" || len(jwsRemoteJWKS) > 0 || jwsDiscoverDIDWeb {
+				if jwsTrustAnchors != "" || len(jwsRemoteJWKS) > 0 || jwsDiscoverDIDWeb || jwsDiscoverOIDC {
 					payload["signatures"] = signatureResults
 				}
 				if requireJWSSignatures {
@@ -196,7 +204,7 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 			if requireProvenanceDigests {
 				fmt.Fprintf(cmd.OutOrStdout(), "required provenance digests: true\n")
 			}
-			if jwsTrustAnchors != "" || len(jwsRemoteJWKS) > 0 || jwsDiscoverDIDWeb || requireJWSSignatures {
+			if jwsTrustAnchors != "" || len(jwsRemoteJWKS) > 0 || jwsDiscoverDIDWeb || jwsDiscoverOIDC || requireJWSSignatures {
 				fmt.Fprintf(cmd.OutOrStdout(), "verified signatures: %d\n", len(signatureResults))
 			}
 			if requireJWSSignatures {
@@ -218,6 +226,7 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 	command.Flags().StringVar(&jwsTrustAnchors, "jws-trust-anchors", "", "JSON trust anchors for verifying detached JWS trustManifest.signature values")
 	command.Flags().StringArrayVar(&jwsRemoteJWKS, "jws-remote-jwks", nil, "HTTPS JWKS URL for verifying detached JWS trustManifest.signature values")
 	command.Flags().BoolVar(&jwsDiscoverDIDWeb, "jws-discover-did-web", false, "Discover did:web DID document keys for verifying detached JWS trustManifest.signature values")
+	command.Flags().BoolVar(&jwsDiscoverOIDC, "jws-discover-oidc", false, "Discover OpenID Connect jwks_uri keys for verifying detached JWS trustManifest.signature values")
 	command.Flags().BoolVar(&requireJWSSignatures, "require-jws-signatures", false, "Require every catalog entry to have a verifiable detached JWS trustManifest.signature")
 	return command
 }

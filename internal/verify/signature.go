@@ -21,6 +21,7 @@ import (
 
 const maxRemoteJWKSBytes = 256 << 10
 const maxDIDWebDocumentBytes = 256 << 10
+const maxOIDCMetadataBytes = 256 << 10
 
 type SignatureResult struct {
 	Identifier string `json:"identifier"`
@@ -73,6 +74,11 @@ type didWebVerificationKey struct {
 	PublicKeyJWK *rawTrustAnchorKey `json:"publicKeyJwk"`
 }
 
+type oidcProviderMetadata struct {
+	Issuer  string `json:"issuer"`
+	JWKSURI string `json:"jwks_uri"`
+}
+
 type jwsProtectedHeader struct {
 	Algorithm string `json:"alg"`
 	KeyID     string `json:"kid,omitempty"`
@@ -95,6 +101,10 @@ func LoadTrustAnchors(path string) (TrustAnchors, error) {
 }
 
 func LoadRemoteTrustAnchors(ctx context.Context, jwksURL string, client *http.Client) (TrustAnchors, error) {
+	return loadRemoteTrustAnchors(ctx, jwksURL, client, "")
+}
+
+func loadRemoteTrustAnchors(ctx context.Context, jwksURL string, client *http.Client, sourceHost string) (TrustAnchors, error) {
 	parsed, err := url.Parse(jwksURL)
 	if err != nil {
 		return TrustAnchors{}, err
@@ -136,9 +146,86 @@ func LoadRemoteTrustAnchors(ctx context.Context, jwksURL string, client *http.Cl
 	for index := range anchors.Keys {
 		anchors.Keys[index].sourceURL = jwksURL
 		anchors.Keys[index].sourceHost = parsed.Hostname()
+		if sourceHost != "" {
+			anchors.Keys[index].sourceHost = sourceHost
+		}
 	}
 	if err := anchors.prepare(); err != nil {
 		return TrustAnchors{}, err
+	}
+	return anchors, nil
+}
+
+func DiscoverOIDCTrustAnchors(ctx context.Context, catalog ard.Catalog, client *http.Client) (TrustAnchors, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	anchorSets := []TrustAnchors{}
+	seenIssuers := map[string]struct{}{}
+	for _, entry := range catalog.Entries {
+		signature := trustString(entry.TrustManifest, "signature")
+		if signature == "" {
+			continue
+		}
+		identity := trustString(entry.TrustManifest, "identity")
+		issuer, configurationURL, sourceHost, ok, err := oidcConfigurationURL(identity)
+		if err != nil {
+			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
+		}
+		if !ok {
+			continue
+		}
+		if _, seen := seenIssuers[issuer]; seen {
+			continue
+		}
+		seenIssuers[issuer] = struct{}{}
+		anchors, err := loadOIDCTrustAnchors(ctx, issuer, configurationURL, sourceHost, client)
+		if err != nil {
+			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
+		}
+		anchorSets = append(anchorSets, anchors)
+	}
+	return MergeTrustAnchors(anchorSets...), nil
+}
+
+func loadOIDCTrustAnchors(ctx context.Context, issuer string, configurationURL string, sourceHost string, client *http.Client) (TrustAnchors, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, configurationURL, nil)
+	if err != nil {
+		return TrustAnchors{}, err
+	}
+	request.Header.Set("Accept", "application/json")
+	request.Header.Set("User-Agent", "ard/0.1")
+	requestid.SetHeader(request.Header, ctx)
+	tracecontext.SetHeader(request.Header, ctx)
+	response, err := client.Do(request)
+	if err != nil {
+		return TrustAnchors{}, err
+	}
+	defer response.Body.Close()
+	if response.StatusCode < 200 || response.StatusCode > 299 {
+		return TrustAnchors{}, fmt.Errorf("OIDC configuration request failed with HTTP %d", response.StatusCode)
+	}
+	limited := io.LimitReader(response.Body, maxOIDCMetadataBytes+1)
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return TrustAnchors{}, err
+	}
+	if len(data) > maxOIDCMetadataBytes {
+		return TrustAnchors{}, fmt.Errorf("OIDC configuration exceeds %d bytes", maxOIDCMetadataBytes)
+	}
+	var metadata oidcProviderMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return TrustAnchors{}, fmt.Errorf("OIDC configuration: %w", err)
+	}
+	if metadata.Issuer != issuer {
+		return TrustAnchors{}, fmt.Errorf("OIDC issuer %q must match trustManifest.identity %q", metadata.Issuer, issuer)
+	}
+	if strings.TrimSpace(metadata.JWKSURI) == "" {
+		return TrustAnchors{}, errors.New("OIDC jwks_uri is required")
+	}
+	anchors, err := loadRemoteTrustAnchors(ctx, metadata.JWKSURI, client, sourceHost)
+	if err != nil {
+		return TrustAnchors{}, fmt.Errorf("load OIDC jwks_uri %s: %w", metadata.JWKSURI, err)
 	}
 	return anchors, nil
 }
@@ -252,6 +339,29 @@ func MergeTrustAnchors(anchorSets ...TrustAnchors) TrustAnchors {
 		merged.Keys = append(merged.Keys, anchors.Keys...)
 	}
 	return merged
+}
+
+func oidcConfigurationURL(identity string) (string, string, string, bool, error) {
+	issuer := strings.TrimRight(strings.TrimSpace(identity), "/")
+	if issuer == "" {
+		return "", "", "", false, nil
+	}
+	parsed, err := url.Parse(issuer)
+	if err != nil {
+		return "", "", "", false, err
+	}
+	if parsed.Scheme != "https" {
+		return "", "", "", false, nil
+	}
+	if parsed.Hostname() == "" {
+		return "", "", "", true, errors.New("OIDC issuer must include a host")
+	}
+	if parsed.RawQuery != "" || parsed.Fragment != "" {
+		return "", "", "", true, errors.New("OIDC issuer must not include query or fragment")
+	}
+	configuration := &url.URL{Scheme: parsed.Scheme, Host: parsed.Host}
+	configuration.Path = strings.TrimRight(parsed.EscapedPath(), "/") + "/.well-known/openid-configuration"
+	return issuer, configuration.String(), parsed.Hostname(), true, nil
 }
 
 func didWebDocumentURL(identity string) (string, string, bool, error) {

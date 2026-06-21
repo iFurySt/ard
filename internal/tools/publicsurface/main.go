@@ -107,9 +107,10 @@ var expectedPackages = map[string]packageSurface{
 }
 
 type cliSurface struct {
-	Use      string
-	Commands []string
-	Flags    []string
+	Use          string
+	Commands     []string
+	Flags        []string
+	CommandFlags map[string][]string
 }
 
 var expectedCLI = map[string]cliSurface{
@@ -131,6 +132,22 @@ var expectedCLI = map[string]cliSurface{
 			"version",
 		},
 		Flags: []string{"database-url", "policy-file"},
+		CommandFlags: map[string][]string{
+			"verify catalog": []string{
+				"attestation-digests",
+				"json",
+				"jws-discover-did-web",
+				"jws-discover-oidc",
+				"jws-remote-jwks",
+				"jws-trust-anchors",
+				"provenance-digests",
+				"require-attestation-digests",
+				"require-jws-signatures",
+				"require-provenance-digests",
+				"require-source-digests",
+				"source-digests",
+			},
+		},
 	},
 	"ardctl": {
 		Use: "ardctl",
@@ -149,6 +166,22 @@ var expectedCLI = map[string]cliSurface{
 			"version",
 		},
 		Flags: []string{"database-url", "policy-file"},
+		CommandFlags: map[string][]string{
+			"verify catalog": []string{
+				"attestation-digests",
+				"json",
+				"jws-discover-did-web",
+				"jws-discover-oidc",
+				"jws-remote-jwks",
+				"jws-trust-anchors",
+				"provenance-digests",
+				"require-attestation-digests",
+				"require-jws-signatures",
+				"require-provenance-digests",
+				"require-source-digests",
+				"source-digests",
+			},
+		},
 	},
 	"ard-server": {
 		Use:      "ard-server",
@@ -308,6 +341,18 @@ func compareCLISurface(name string, expected cliSurface, command *cobra.Command)
 	}
 	sort.Strings(expected.Commands)
 	sort.Strings(expected.Flags)
+	sortCommandFlags(expected.CommandFlags)
+	if expected.CommandFlags != nil {
+		actual.CommandFlags = map[string][]string{}
+		for path := range expected.CommandFlags {
+			nested, err := commandByPath(command, path)
+			if err != nil {
+				return fmt.Errorf("%s CLI surface drift: %w", name, err)
+			}
+			actual.CommandFlags[path] = flagNames(nested)
+		}
+		sortCommandFlags(actual.CommandFlags)
+	}
 	if !reflect.DeepEqual(expected, actual) {
 		return fmt.Errorf("%s CLI surface drift\nexpected: %#v\nactual:   %#v", name, expected, actual)
 	}
@@ -340,4 +385,28 @@ func flagNames(command *cobra.Command) []string {
 	}
 	sort.Strings(names)
 	return names
+}
+
+func commandByPath(root *cobra.Command, path string) (*cobra.Command, error) {
+	command := root
+	for _, part := range strings.Fields(path) {
+		next := (*cobra.Command)(nil)
+		for _, child := range command.Commands() {
+			if child.Name() == part {
+				next = child
+				break
+			}
+		}
+		if next == nil {
+			return nil, fmt.Errorf("missing command path %q", path)
+		}
+		command = next
+	}
+	return command, nil
+}
+
+func sortCommandFlags(commandFlags map[string][]string) {
+	for path := range commandFlags {
+		sort.Strings(commandFlags[path])
+	}
 }
