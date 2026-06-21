@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"sync"
 	"testing"
 
@@ -1418,6 +1419,87 @@ func TestRouterAdminPolicyWithPostgres(t *testing.T) {
 	router.ServeHTTP(blockedResponse, blockedRequest)
 	if blockedResponse.Code != http.StatusForbidden {
 		t.Fatalf("expected policy deny HTTP 403, got %d: %s", blockedResponse.Code, blockedResponse.Body.String())
+	}
+}
+
+func TestRouterAdminPolicyRequiresTrustMetadataWithPostgres(t *testing.T) {
+	databaseURL := os.Getenv("ARD_TEST_DATABASE_URL")
+	if databaseURL == "" {
+		t.Skip("set ARD_TEST_DATABASE_URL to run Postgres integration tests")
+	}
+	ctx := context.Background()
+	registryStore, err := store.Open(databaseURL)
+	if err != nil {
+		t.Fatalf("open store: %v", err)
+	}
+	defer registryStore.Close()
+	if err := registryStore.AutoMigrate(); err != nil {
+		t.Fatalf("migrate store: %v", err)
+	}
+	if _, err := registryStore.DeleteEntry(ctx, "urn:air:secure.example.com:server:missing-digest"); err != nil {
+		t.Fatalf("clean missing digest policy entry: %v", err)
+	}
+	if _, err := registryStore.DeleteEntry(ctx, "urn:air:secure.example.com:server:pinned-digest"); err != nil {
+		t.Fatalf("clean pinned digest policy entry: %v", err)
+	}
+
+	router := NewRouterWithOptions(registryStore, Options{
+		AdminToken: "test-token",
+		Policy: &policy.Policy{
+			RequireTrustManifest:               true,
+			RequireSourceDigestForURLArtifacts: true,
+			RequireJWSSignature:                true,
+		},
+	})
+
+	missingDigestEntry := ard.CatalogEntry{
+		Identifier:            "urn:air:secure.example.com:server:missing-digest",
+		DisplayName:           "Missing Digest MCP",
+		Type:                  ard.TypeMCPServerCard,
+		URL:                   "https://secure.example.com/mcp.json",
+		Description:           "Policy should reject this URL artifact.",
+		RepresentativeQueries: []string{"missing digest policy", "unsigned trust policy"},
+		TrustManifest: map[string]any{
+			"identity":  "https://secure.example.com",
+			"signature": "detached-jws-placeholder",
+		},
+	}
+	missingDigestBody, _ := json.Marshal(missingDigestEntry)
+	missingDigestRequest := httptest.NewRequest(http.MethodPost, "/admin/entries", bytes.NewReader(missingDigestBody))
+	missingDigestRequest.Header.Set("Authorization", "Bearer test-token")
+	missingDigestRequest.Header.Set("Content-Type", "application/json")
+	missingDigestResponse := httptest.NewRecorder()
+	router.ServeHTTP(missingDigestResponse, missingDigestRequest)
+	if missingDigestResponse.Code != http.StatusForbidden {
+		t.Fatalf("expected source digest policy deny HTTP 403, got %d: %s", missingDigestResponse.Code, missingDigestResponse.Body.String())
+	}
+	if !strings.Contains(missingDigestResponse.Body.String(), "sourceDigest required for url delivery") {
+		t.Fatalf("expected sourceDigest policy error, got %s", missingDigestResponse.Body.String())
+	}
+
+	pinnedEntry := missingDigestEntry
+	pinnedEntry.Identifier = "urn:air:secure.example.com:server:pinned-digest"
+	pinnedEntry.DisplayName = "Pinned Digest MCP"
+	pinnedEntry.TrustManifest = map[string]any{
+		"identity":     "https://secure.example.com",
+		"sourceDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+		"signature":    "detached-jws-placeholder",
+	}
+	pinnedBody, _ := json.Marshal(pinnedEntry)
+	pinnedRequest := httptest.NewRequest(http.MethodPost, "/admin/entries", bytes.NewReader(pinnedBody))
+	pinnedRequest.Header.Set("Authorization", "Bearer test-token")
+	pinnedRequest.Header.Set("Content-Type", "application/json")
+	pinnedResponse := httptest.NewRecorder()
+	router.ServeHTTP(pinnedResponse, pinnedRequest)
+	if pinnedResponse.Code != http.StatusCreated {
+		t.Fatalf("expected pinned trust metadata create HTTP 201, got %d: %s", pinnedResponse.Code, pinnedResponse.Body.String())
+	}
+	stored, found, err := registryStore.GetEntry(ctx, pinnedEntry.Identifier, true)
+	if err != nil {
+		t.Fatalf("get pinned policy entry: %v", err)
+	}
+	if !found || stored.TrustManifest["sourceDigest"] != pinnedEntry.TrustManifest["sourceDigest"] {
+		t.Fatalf("expected pinned entry to persist, got found=%v entry=%#v", found, stored)
 	}
 }
 

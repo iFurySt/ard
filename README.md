@@ -139,7 +139,8 @@ inspect mutation audit events without exposing inactive resources through public
 discovery. Audit events are hash-chained and can be verified through
 `ardctl admin audit --verify-chain`. Server
 deployments can use a single admin token or reloadable role-scoped admin token files. URL
-artifacts can be pinned and verified with `trustManifest.sourceDigest`, and detached JWS
+artifacts can be pinned and verified with `trustManifest.sourceDigest`; ingestion policy
+can require trust metadata before persistence. Detached JWS
 `trustManifest.signature` values can be verified against explicit Ed25519 or local JWKS
 trust anchors. Attestation documents can be fetched and verified against pinned
 `trustManifest.attestations[].digest` values, and HTTP(S) provenance sources can be

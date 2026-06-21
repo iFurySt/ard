@@ -23,6 +23,7 @@ registry_url="http://127.0.0.1:${registry_port}"
 export_file="$(mktemp /tmp/ard-e2e-export-XXXXXX.json)"
 referral_catalog_file="$(mktemp /tmp/ard-e2e-referral-catalog-XXXXXX.json)"
 policy_file="$(mktemp /tmp/ard-e2e-policy-XXXXXX.json)"
+source_policy_file="$(mktemp /tmp/ard-e2e-source-policy-XXXXXX.json)"
 tokens_file="$(mktemp /tmp/ard-e2e-tokens-XXXXXX.json)"
 mcp_card_file="$(mktemp /tmp/ard-e2e-mcp-card-XXXXXX.json)"
 skill_file="$(mktemp /tmp/ard-e2e-skill-XXXXXX.md)"
@@ -51,7 +52,7 @@ cleanup() {
     wait "${upstream_pid}" >/dev/null 2>&1 || true
   fi
   docker rm -f "${postgres_container}" >/dev/null 2>&1 || true
-  rm -f "${export_file}" "${referral_catalog_file}" "${policy_file}" "${tokens_file}" "${mcp_card_file}" "${skill_file}" "${openapi_file}" "${fixture_server_file}" "${upstream_server_file}"
+  rm -f "${export_file}" "${referral_catalog_file}" "${policy_file}" "${source_policy_file}" "${tokens_file}" "${mcp_card_file}" "${skill_file}" "${openapi_file}" "${fixture_server_file}" "${upstream_server_file}"
   rm -rf "${admin_sdk_workdir}"
 }
 trap cleanup EXIT
@@ -84,6 +85,12 @@ cat >"${policy_file}" <<'JSON'
   "pendingPublishers": ["pending.example.com"],
   "denyPublishers": ["blocked.example.com"],
   "requiredApprovals": 2
+}
+JSON
+cat >"${source_policy_file}" <<'JSON'
+{
+  "version": "1",
+  "requireSourceDigestForURLArtifacts": true
 }
 JSON
 cat >"${tokens_file}" <<'JSON'
@@ -254,6 +261,18 @@ if ! fetch_with_retry "${skill_url}" "${skill_file}"; then
   cp "${skill_fallback}" "${skill_file}"
 fi
 fetch_with_retry "${openapi_url}" "${openapi_file}"
+
+if bin/ard --database-url "${database_url}" --policy-file "${source_policy_file}" add mcp "${mcp_card_url}" \
+  --publisher policy-missing.example.com >/tmp/ard-e2e-policy-source-deny.log 2>&1; then
+  echo "source digest policy unexpectedly accepted an unpinned live MCP URL artifact" >&2
+  exit 1
+fi
+grep -q "sourceDigest required for url delivery" /tmp/ard-e2e-policy-source-deny.log
+bin/ard --database-url "${database_url}" --policy-file "${source_policy_file}" add mcp "${mcp_card_url}" \
+  --publisher policy-source.example.com \
+  --pin-source-digest | grep -q "imported application/mcp-server-card+json"
+bin/ardctl --database-url "${database_url}" remove urn:air:policy-source.example.com:server:agentmemory-mcp \
+  --yes | grep -q "removed urn:air:policy-source.example.com:server:agentmemory-mcp"
 
 if bin/ardctl admin list --registry-url "${registry_url}" >/tmp/ard-e2e-no-token.log 2>&1; then
   echo "admin list unexpectedly succeeded without token" >&2
@@ -469,7 +488,12 @@ grep -q "open-browser-use" /tmp/ard-e2e-public-catalog.json
 bin/ard verify catalog /tmp/ard-e2e-public-catalog.json --json | grep -q '"valid": true'
 bin/ard verify catalog "${export_file}" --json | grep -q '"valid": true'
 bin/ard verify catalog "${export_file}" --source-digests --json >/tmp/ard-e2e-verify-digests.json
-grep -q '"sourceDigestsVerified": 1' /tmp/ard-e2e-verify-digests.json
+python3 - <<'PY'
+import json
+data = json.load(open("/tmp/ard-e2e-verify-digests.json"))
+if data.get("sourceDigestsVerified", 0) < 1:
+    raise SystemExit(f"expected at least 1 verified source digest, got {data.get('sourceDigestsVerified')!r}")
+PY
 grep -q '"verified": true' /tmp/ard-e2e-verify-digests.json
 if bin/ard verify catalog "${export_file}" --require-source-digests >/tmp/ard-e2e-require-digests.out 2>/tmp/ard-e2e-require-digests.err; then
   echo "strict source digest verification unexpectedly passed" >&2

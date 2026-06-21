@@ -11,13 +11,16 @@ import (
 )
 
 type Policy struct {
-	Version           string   `json:"version"`
-	DefaultStatus     string   `json:"defaultStatus,omitempty"`
-	DenyPublishers    []string `json:"denyPublishers,omitempty"`
-	PendingPublishers []string `json:"pendingPublishers,omitempty"`
-	DenyTypes         []string `json:"denyTypes,omitempty"`
-	PendingTypes      []string `json:"pendingTypes,omitempty"`
-	RequiredApprovals int      `json:"requiredApprovals,omitempty"`
+	Version                            string   `json:"version"`
+	DefaultStatus                      string   `json:"defaultStatus,omitempty"`
+	DenyPublishers                     []string `json:"denyPublishers,omitempty"`
+	PendingPublishers                  []string `json:"pendingPublishers,omitempty"`
+	DenyTypes                          []string `json:"denyTypes,omitempty"`
+	PendingTypes                       []string `json:"pendingTypes,omitempty"`
+	RequiredApprovals                  int      `json:"requiredApprovals,omitempty"`
+	RequireTrustManifest               bool     `json:"requireTrustManifest,omitempty"`
+	RequireSourceDigestForURLArtifacts bool     `json:"requireSourceDigestForURLArtifacts,omitempty"`
+	RequireJWSSignature                bool     `json:"requireJWSSignature,omitempty"`
 }
 
 type Evaluation struct {
@@ -94,6 +97,15 @@ func (policy Policy) EvaluateEntry(entry ard.CatalogEntry) (Evaluation, error) {
 	if containsFold(policy.DenyTypes, entry.Type) {
 		return Evaluation{}, DeniedError{Identifier: entry.Identifier, Reason: "type denied"}
 	}
+	if policy.RequireTrustManifest && len(entry.TrustManifest) == 0 {
+		return Evaluation{}, DeniedError{Identifier: entry.Identifier, Reason: "trustManifest required"}
+	}
+	if policy.RequireSourceDigestForURLArtifacts && entry.URL != "" && trustString(entry.TrustManifest, "sourceDigest") == "" {
+		return Evaluation{}, DeniedError{Identifier: entry.Identifier, Reason: "sourceDigest required for url delivery"}
+	}
+	if policy.RequireJWSSignature && trustString(entry.TrustManifest, "signature") == "" {
+		return Evaluation{}, DeniedError{Identifier: entry.Identifier, Reason: "trustManifest.signature required"}
+	}
 
 	status := store.LifecycleStatusActive
 	reason := "default active"
@@ -114,6 +126,14 @@ func (policy Policy) EvaluateEntry(entry ard.CatalogEntry) (Evaluation, error) {
 		reason = "type requires review"
 	}
 	return Evaluation{Identifier: entry.Identifier, Status: status, Reason: reason}, nil
+}
+
+func trustString(values map[string]any, key string) string {
+	if values == nil {
+		return ""
+	}
+	value, _ := values[key].(string)
+	return strings.TrimSpace(value)
 }
 
 func containsFold(values []string, target string) bool {

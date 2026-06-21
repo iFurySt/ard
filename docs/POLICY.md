@@ -15,7 +15,10 @@ Set it with `--policy-file` or `ARD_POLICY_FILE`.
   "denyPublishers": ["blocked.example.com"],
   "pendingTypes": ["application/openapi+json"],
   "denyTypes": [],
-  "requiredApprovals": 2
+  "requiredApprovals": 2,
+  "requireTrustManifest": true,
+  "requireSourceDigestForURLArtifacts": true,
+  "requireJWSSignature": true
 }
 ```
 
@@ -24,6 +27,10 @@ Set it with `--policy-file` or `ARD_POLICY_FILE`.
 - `denyPublishers` and `denyTypes` reject matching entries before persistence.
 - `pendingPublishers` and `pendingTypes` persist matching new entries with lifecycle
   status `pending`.
+- `requireTrustManifest` rejects entries that do not carry `trustManifest`.
+- `requireSourceDigestForURLArtifacts` rejects URL-delivered entries that do not carry
+  `trustManifest.sourceDigest`. Embedded `data` entries are exempt.
+- `requireJWSSignature` rejects entries that do not carry `trustManifest.signature`.
 - Re-importing an existing active entry that matches a pending rule updates the stored
   metadata but moves the entry back to `pending`, hiding it from public discovery until
   review approval.
@@ -43,5 +50,9 @@ Set it with `--policy-file` or `ARD_POLICY_FILE`.
   disables a pending entry and records the reason on the review audit event.
 - Review reasons are decision metadata, not ARD catalog entry metadata.
 
-Policy is an MVP ingestion gate. It is not a replacement for RBAC, signed trust
-manifests, or a full policy engine.
+Policy is an MVP ingestion gate. Trust metadata requirements check field presence only.
+They do not fetch artifacts, verify digests, verify JWS signatures, resolve keys, or
+prove identity. Use `ard verify catalog` for explicit verification before promotion or
+release.
+
+Policy is not a replacement for RBAC, signed trust manifests, or a full policy engine.

@@ -72,8 +72,8 @@ Cobra, Gin, GORM, and Postgres.
   of `active`, `pending`, or `disabled`. Public discovery, search, explore, and catalog
   export only expose `active` entries; admin list can include and filter all statuses.
 - Ingestion policy: an optional `ARD_POLICY_FILE` / `--policy-file` JSON policy can deny
-  entries or require review by moving new or updated entries to `pending` based on
-  publisher or media type.
+  entries, require trust metadata fields before persistence, or require review by moving
+  new or updated entries to `pending` based on publisher or media type.
 - Review workflow: pending entries can be listed through `/admin/reviews` and approved or
   rejected through dedicated review routes and `ardctl admin review`. Policy can require
   multiple distinct reviewer approvals before a pending entry becomes active. Review
@@ -227,6 +227,8 @@ changing HTTP contracts.
   Do not export disabled or pending entries through public catalog/search surfaces.
 - Policy evaluation must happen before persistence for local add/crawl and remote admin
   imports. Denied entries must not be persisted.
+- Policy trust metadata requirements are field-presence gates only. Cryptographic,
+  digest, key, and identity proof must stay in explicit verification workflows.
 - Specification behavior should be derived from `ards-project/ard-spec`, especially
   `spec/ard.md`, `spec/schemas/`, ADRs, and `conformance/`.
 

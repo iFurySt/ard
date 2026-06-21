@@ -31,9 +31,13 @@ Use this document to make secure defaults explicit and legible to agents.
 - Set `ARD_POLICY_FILE` or pass `--policy-file` to apply a JSON ingestion policy.
 - Policy can deny entries by publisher or media type before persistence.
 - Policy can move new or updated entries to `pending` by publisher or media type.
+- Policy can require `trustManifest`, `trustManifest.sourceDigest` for URL artifacts,
+  and `trustManifest.signature` before persistence.
 - Denied entries must not be persisted or exposed through public discovery.
 - Policy files should be versioned with the deployment configuration and reviewed like
   code.
+- Policy trust requirements check field presence only. They do not fetch artifacts,
+  verify digests, verify JWS signatures, resolve keys, or prove identity.
 
 ## Trust Verification
 
