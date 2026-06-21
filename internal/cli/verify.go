@@ -6,20 +6,22 @@ import (
 	"fmt"
 
 	"github.com/ifuryst/ard/internal/catalog"
+	"github.com/ifuryst/ard/internal/config"
+	"github.com/ifuryst/ard/internal/policy"
 	"github.com/ifuryst/ard/internal/verify"
 	"github.com/spf13/cobra"
 )
 
-func newVerifyCommand() *cobra.Command {
+func newVerifyCommand(root *rootOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "verify",
 		Short: "Verify ARD resources",
 	}
-	command.AddCommand(newVerifyCatalogCommand())
+	command.AddCommand(newVerifyCatalogCommand(root))
 	return command
 }
 
-func newVerifyCatalogCommand() *cobra.Command {
+func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 	var jsonOutput bool
 	var verifySourceDigests bool
 	var requireSourceDigests bool
@@ -87,6 +89,19 @@ func newVerifyCatalogCommand() *cobra.Command {
 				}
 				signatureResults = results
 			}
+			policyEvaluations := []policy.Evaluation{}
+			policyFile := config.PolicyFile(root.policyFile)
+			if policyFile != "" {
+				loadedPolicy, err := policy.LoadFile(policyFile)
+				if err != nil {
+					return fmt.Errorf("load policy: %w", err)
+				}
+				_, evaluations, err := loadedPolicy.EvaluateCatalog(loadedCatalog)
+				if err != nil {
+					return err
+				}
+				policyEvaluations = evaluations
+			}
 			if jsonOutput {
 				payload := map[string]any{
 					"valid":                      true,
@@ -96,6 +111,11 @@ func newVerifyCatalogCommand() *cobra.Command {
 					"attestationDigestsVerified": len(attestationDigestResults),
 					"provenanceDigestsVerified":  len(provenanceDigestResults),
 					"signaturesVerified":         len(signatureResults),
+				}
+				if policyFile != "" {
+					payload["policyEvaluated"] = true
+					payload["policyEntries"] = len(policyEvaluations)
+					payload["policy"] = policyEvaluations
 				}
 				if verifySourceDigests {
 					payload["sourceDigests"] = sourceDigestResults
@@ -160,6 +180,9 @@ func newVerifyCatalogCommand() *cobra.Command {
 			}
 			if requireJWSSignatures {
 				fmt.Fprintf(cmd.OutOrStdout(), "required signatures: true\n")
+			}
+			if policyFile != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "policy entries evaluated: %d\n", len(policyEvaluations))
 			}
 			return nil
 		},

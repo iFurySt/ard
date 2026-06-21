@@ -29,6 +29,8 @@ Use this document to make secure defaults explicit and legible to agents.
 ## Ingestion Policy
 
 - Set `ARD_POLICY_FILE` or pass `--policy-file` to apply a JSON ingestion policy.
+- `ard verify catalog` also honors `--policy-file` / `ARD_POLICY_FILE` so teams can run
+  policy preflight before persistence.
 - Policy can deny entries by publisher or media type before persistence.
 - Policy can move new or updated entries to `pending` by publisher or media type.
 - Policy can require `trustManifest`, `trustManifest.sourceDigest` for URL artifacts,

@@ -60,6 +60,7 @@ ard verify catalog ./ai-catalog.json --attestation-digests
 ard verify catalog ./ai-catalog.json --require-attestation-digests
 ard verify catalog ./ai-catalog.json --provenance-digests
 ard verify catalog ./ai-catalog.json --require-provenance-digests
+ard --policy-file ./policy.json verify catalog ./ai-catalog.json
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
@@ -89,6 +90,7 @@ bin/ardctl --database-url "$DATABASE_URL" list --filter "tags contains 'weath' A
 bin/ardctl --database-url "$DATABASE_URL" list --filter "type = 'application/openapi+json' OR (tags = 'skill' AND metadata.adapter = 'skill')"
 bin/ard verify catalog ./internal/catalog/testdata/acme-ai-catalog.json
 bin/ard verify catalog ./ai-catalog.json --require-source-digests
+bin/ard --policy-file ./policy.json verify catalog ./ai-catalog.json
 bin/ard verify catalog ./ai-catalog.json --attestation-digests
 bin/ard verify catalog ./ai-catalog.json --provenance-digests
 bin/ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json

@@ -24,6 +24,8 @@ Set it with `--policy-file` or `ARD_POLICY_FILE`.
 
 ## Behavior
 
+- `ard --policy-file ./policy.json verify catalog ./ai-catalog.json` evaluates the
+  catalog against policy without writing to the registry.
 - `denyPublishers` and `denyTypes` reject matching entries before persistence.
 - `pendingPublishers` and `pendingTypes` persist matching new entries with lifecycle
   status `pending`.

@@ -24,9 +24,9 @@ type Policy struct {
 }
 
 type Evaluation struct {
-	Identifier string
-	Status     string
-	Reason     string
+	Identifier string `json:"identifier"`
+	Status     string `json:"status"`
+	Reason     string `json:"reason"`
 }
 
 type DeniedError struct {

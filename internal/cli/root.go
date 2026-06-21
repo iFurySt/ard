@@ -65,7 +65,7 @@ func newRootCommand(use string, includeServer bool) *cobra.Command {
 	command.AddCommand(newListCommand(&options))
 	command.AddCommand(newRemoveCommand(&options))
 	command.AddCommand(newSearchCommand())
-	command.AddCommand(newVerifyCommand())
+	command.AddCommand(newVerifyCommand(&options))
 	command.AddCommand(newVersionCommand())
 	return command
 }

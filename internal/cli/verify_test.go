@@ -135,6 +135,85 @@ func TestVerifyCatalogVerifiesProvenanceDigests(t *testing.T) {
 	}
 }
 
+func TestVerifyCatalogEvaluatesPolicy(t *testing.T) {
+	tempDir := t.TempDir()
+	policyPath := filepath.Join(tempDir, "policy.json")
+	if err := os.WriteFile(policyPath, []byte(`{
+  "version": "1",
+  "requireSourceDigestForURLArtifacts": true
+}`), 0o600); err != nil {
+		t.Fatalf("write policy: %v", err)
+	}
+	catalogPath := filepath.Join(tempDir, "ai-catalog.json")
+	if err := os.WriteFile(catalogPath, []byte(`{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:example.com:server:weather",
+      "displayName": "Weather",
+      "type": "application/mcp-server-card+json",
+      "url": "https://example.com/mcp.json",
+      "trustManifest": {
+        "identity": "https://example.com",
+        "sourceDigest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+      }
+    }
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("write catalog: %v", err)
+	}
+
+	command := NewRootCommand()
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetErr(&output)
+	command.SetArgs([]string{"--policy-file", policyPath, "verify", "catalog", catalogPath, "--json"})
+	if err := command.Execute(); err != nil {
+		t.Fatalf("execute verify: %v", err)
+	}
+	if !strings.Contains(output.String(), `"policyEvaluated": true`) || !strings.Contains(output.String(), `"reason": "default active"`) {
+		t.Fatalf("expected policy evaluation output, got %s", output.String())
+	}
+}
+
+func TestVerifyCatalogRejectsPolicyDeniedCatalog(t *testing.T) {
+	tempDir := t.TempDir()
+	policyPath := filepath.Join(tempDir, "policy.json")
+	if err := os.WriteFile(policyPath, []byte(`{
+  "version": "1",
+  "requireSourceDigestForURLArtifacts": true
+}`), 0o600); err != nil {
+		t.Fatalf("write policy: %v", err)
+	}
+	catalogPath := filepath.Join(tempDir, "ai-catalog.json")
+	if err := os.WriteFile(catalogPath, []byte(`{
+  "specVersion": "1.0",
+  "entries": [
+    {
+      "identifier": "urn:air:example.com:server:weather",
+      "displayName": "Weather",
+      "type": "application/mcp-server-card+json",
+      "url": "https://example.com/mcp.json",
+      "trustManifest": {
+        "identity": "https://example.com"
+      }
+    }
+  ]
+}`), 0o600); err != nil {
+		t.Fatalf("write catalog: %v", err)
+	}
+
+	command := NewRootCommand()
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetErr(&output)
+	command.SetArgs([]string{"--policy-file", policyPath, "verify", "catalog", catalogPath})
+	err := command.Execute()
+	if err == nil || !strings.Contains(err.Error(), "sourceDigest required for url delivery") {
+		t.Fatalf("expected policy denial, got %v output %s", err, output.String())
+	}
+}
+
 func TestVerifyCatalogVerifiesJWSSignatures(t *testing.T) {
 	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {

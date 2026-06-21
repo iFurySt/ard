@@ -268,6 +268,11 @@ if bin/ard --database-url "${database_url}" --policy-file "${source_policy_file}
   exit 1
 fi
 grep -q "sourceDigest required for url delivery" /tmp/ard-e2e-policy-source-deny.log
+if bin/ard --policy-file "${source_policy_file}" verify catalog "${referral_catalog_file}" >/tmp/ard-e2e-policy-verify-deny.log 2>&1; then
+  echo "policy verify unexpectedly accepted an unpinned referral catalog" >&2
+  exit 1
+fi
+grep -q "sourceDigest required for url delivery" /tmp/ard-e2e-policy-verify-deny.log
 bin/ard --database-url "${database_url}" --policy-file "${source_policy_file}" add mcp "${mcp_card_url}" \
   --publisher policy-source.example.com \
   --pin-source-digest | grep -q "imported application/mcp-server-card+json"
