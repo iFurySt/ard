@@ -69,6 +69,7 @@ ard verify catalog ./ai-catalog.json --jws-discover-did-web
 ard verify catalog ./ai-catalog.json --jws-discover-oidc
 ard verify catalog ./ai-catalog.json --jws-discover-spiffe
 ard verify catalog ./ai-catalog.json --jws-discover-tls-cert
+ard verify catalog ./ai-catalog.json --jws-discover-tls-cert --jws-tls-spki-pin example.com=sha256:<hex> --require-jws-tls-spki-pins
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
 
@@ -107,6 +108,7 @@ bin/ard verify catalog ./ai-catalog.json --jws-discover-did-web
 bin/ard verify catalog ./ai-catalog.json --jws-discover-oidc
 bin/ard verify catalog ./ai-catalog.json --jws-discover-spiffe
 bin/ard verify catalog ./ai-catalog.json --jws-discover-tls-cert
+bin/ard verify catalog ./ai-catalog.json --jws-discover-tls-cert --jws-tls-spki-pin example.com=sha256:<hex>
 bin/ard --database-url "$DATABASE_URL" crawl https://example.com/
 bin/ardctl --database-url "$DATABASE_URL" export catalog -o ai-catalog.json
 
@@ -159,10 +161,10 @@ artifacts can be pinned and verified with `trustManifest.sourceDigest`; ingestio
 can require trust metadata before persistence. Detached JWS
 `trustManifest.signature` values can be verified against explicit Ed25519, local JWKS,
 explicit HTTPS remote JWKS, discovered `did:web` DID document keys, or discovered OIDC
-`jwks_uri` keys. HTTPS TLS leaf certificate Ed25519 keys can also be used as explicit
-verification anchors. Attestation documents can be fetched and verified against pinned
-`trustManifest.attestations[].digest` values, and HTTP(S) provenance sources can be
-verified against pinned
+`jwks_uri` keys. SPIFFE bundle JWKS and HTTPS TLS leaf certificate Ed25519 keys can also
+be used as explicit verification anchors; TLS discovery supports optional SPKI SHA-256
+pins. Attestation documents can be fetched and verified against pinned
+`trustManifest.attestations[].digest` values, and HTTP(S) provenance sources can be verified against pinned
 `trustManifest.provenance[].sourceDigest` values.
 Search supports
 client-followed federation referrals, bounded server-side `federation=auto` upstream

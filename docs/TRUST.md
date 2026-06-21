@@ -46,6 +46,8 @@ ard verify catalog ./ai-catalog.json --jws-discover-did-web
 ard verify catalog ./ai-catalog.json --jws-discover-oidc
 ard verify catalog ./ai-catalog.json --jws-discover-spiffe
 ard verify catalog ./ai-catalog.json --jws-discover-tls-cert
+ard verify catalog ./ai-catalog.json --jws-discover-tls-cert --jws-tls-spki-pin example.com=sha256:<hex>
+ard verify catalog ./ai-catalog.json --jws-discover-tls-cert --jws-tls-spki-pin example.com=sha256:<hex> --require-jws-tls-spki-pins
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
 
@@ -146,9 +148,16 @@ Workload API state.
 `trustManifest.identity` TLS leaf certificate. It uses the normal Go TLS verifier for
 the HTTPS request, requires the verified leaf certificate public key to be Ed25519, and
 then runs the same detached JWS verification path. This proves the same TLS endpoint
-presented the key at verification time; it does not evaluate custom certificate policy,
-certificate transparency, revocation, extended compliance rules, or non-Ed25519
-certificate keys.
+presented the key at verification time.
+
+`--jws-tls-spki-pin` adds an operator-supplied certificate policy for TLS certificate
+discovery. Each value must be `host=sha256:<hex>`, where `<hex>` is the SHA-256 digest of
+the leaf certificate SubjectPublicKeyInfo bytes. When a pin is configured for a TLS
+identity host, the discovered leaf certificate must match it before the Ed25519 key is
+accepted. `--require-jws-tls-spki-pins` requires every TLS certificate discovery host to
+have a matching pin. SPKI pinning constrains which verified TLS key can be used; it does
+not evaluate certificate transparency, revocation, extended compliance rules, or
+non-Ed25519 certificate keys.
 
 ## Current Scope
 
@@ -204,12 +213,15 @@ certificate keys.
   values and requiring the bundle URI host to match the SPIFFE trust domain.
 - Implemented: opt-in HTTPS TLS leaf certificate key discovery through
   `ard verify catalog --jws-discover-tls-cert` for verified Ed25519 leaf certificates.
+- Implemented: optional TLS certificate SPKI SHA-256 pinning through
+  `ard verify catalog --jws-tls-spki-pin` and strict pin requirements through
+  `--require-jws-tls-spki-pins`.
 - Implemented: strict catalog signature requirements with
   `ard verify catalog --require-jws-signatures`.
 - Implemented: admin audit event hash chaining and chain verification.
 - Not implemented yet: attestation truth, auditor trust, or freshness verification.
-- Not implemented yet: non-`did:web` DID methods, SPIFFE SVID validation, custom
-  certificate policy, revocation, or non-Ed25519 certificate keys.
+- Not implemented yet: non-`did:web` DID methods, SPIFFE SVID validation, certificate
+  transparency, revocation, or non-Ed25519 certificate keys.
 - Not implemented yet: externally anchored or signed audit trails.
 
 Identity trust-domain matching is a metadata consistency check. It rejects entries that
@@ -235,5 +247,6 @@ proves that the key was advertised by the issuer's OpenID Provider metadata and 
 verification time. SPIFFE bundle discovery proves that the key was advertised by the
 host-matched SPIFFE bundle URI at verification time. TLS certificate discovery proves
 that the verified HTTPS endpoint presented the Ed25519 leaf certificate key at
-verification time. None of these paths prove claim truth, validate SPIFFE SVID chains,
-apply custom certificate policy, or decide whether the signed claims are true.
+verification time, and optional SPKI pins can constrain the accepted TLS key for a host.
+None of these paths prove claim truth, validate SPIFFE SVID chains, evaluate certificate
+transparency or revocation, or decide whether the signed claims are true.

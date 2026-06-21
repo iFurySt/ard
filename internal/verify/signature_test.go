@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -264,6 +265,90 @@ func TestDiscoverTLSCertificateTrustAnchorsVerifiesLeafCertificateKey(t *testing
 	}
 	if len(results) != 1 || !results[0].Verified || results[0].KeyID != "tls-ed25519" || results[0].KeySource != server.URL {
 		t.Fatalf("unexpected results: %#v", results)
+	}
+}
+
+func TestDiscoverTLSCertificateTrustAnchorsVerifiesSPKIPin(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := newEd25519TLSServer(t, publicKey, privateKey, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, _ = response.Write([]byte("ok"))
+	}))
+
+	trustManifest := map[string]any{
+		"identity":     server.URL,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "tls-ed25519", trustManifest, privateKey)
+	catalog := signedCatalog(trustManifest)
+	pins, err := ParseTLSSPKIPins([]string{mustURLHost(t, server.URL) + "=" + tlsSPKIPin(server.Certificate().RawSubjectPublicKeyInfo)})
+	if err != nil {
+		t.Fatalf("parse TLS SPKI pins: %v", err)
+	}
+	anchors, err := DiscoverTLSCertificateTrustAnchorsWithOptions(context.Background(), catalog, server.Client(), TLSCertificateDiscoveryOptions{
+		SPKIPins:        pins,
+		RequireSPKIPins: true,
+	})
+	if err != nil {
+		t.Fatalf("discover TLS certificate trust anchors with SPKI pin: %v", err)
+	}
+	results, err := VerifySignatures(catalog, SignatureOptions{TrustAnchors: anchors})
+	if err != nil {
+		t.Fatalf("verify signature with pinned TLS certificate trust anchor: %v", err)
+	}
+	if len(results) != 1 || !results[0].Verified || results[0].KeyID != "tls-ed25519" {
+		t.Fatalf("unexpected results: %#v", results)
+	}
+}
+
+func TestDiscoverTLSCertificateTrustAnchorsRequiresSPKIPin(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := newEd25519TLSServer(t, publicKey, privateKey, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, _ = response.Write([]byte("ok"))
+	}))
+
+	trustManifest := map[string]any{
+		"identity":     server.URL,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "tls-ed25519", trustManifest, privateKey)
+	_, err = DiscoverTLSCertificateTrustAnchorsWithOptions(context.Background(), signedCatalog(trustManifest), server.Client(), TLSCertificateDiscoveryOptions{
+		RequireSPKIPins: true,
+	})
+	if err == nil || !strings.Contains(err.Error(), "TLS SPKI pin is required") {
+		t.Fatalf("expected required TLS SPKI pin error, got %v", err)
+	}
+}
+
+func TestDiscoverTLSCertificateTrustAnchorsRejectsSPKIPinMismatch(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := newEd25519TLSServer(t, publicKey, privateKey, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, _ = response.Write([]byte("ok"))
+	}))
+
+	trustManifest := map[string]any{
+		"identity":     server.URL,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "tls-ed25519", trustManifest, privateKey)
+	wrongPin := "sha256:" + strings.Repeat("00", sha256.Size)
+	pins, err := ParseTLSSPKIPins([]string{mustURLHost(t, server.URL) + "=" + wrongPin})
+	if err != nil {
+		t.Fatalf("parse TLS SPKI pins: %v", err)
+	}
+	_, err = DiscoverTLSCertificateTrustAnchorsWithOptions(context.Background(), signedCatalog(trustManifest), server.Client(), TLSCertificateDiscoveryOptions{
+		SPKIPins: pins,
+	})
+	if err == nil || !strings.Contains(err.Error(), "TLS SPKI pin mismatch") {
+		t.Fatalf("expected TLS SPKI pin mismatch, got %v", err)
 	}
 }
 

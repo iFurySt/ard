@@ -35,6 +35,8 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 	var jwsDiscoverOIDC bool
 	var jwsDiscoverSPIFFE bool
 	var jwsDiscoverTLSCert bool
+	var jwsTLSSPKIPins []string
+	var requireJWSTLSSPKIPins bool
 	var requireJWSSignatures bool
 	command := &cobra.Command{
 		Use:   "catalog SOURCE",
@@ -45,6 +47,9 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 			loadedCatalog, err := catalog.Load(ctx, args[0])
 			if err != nil {
 				return err
+			}
+			if (len(jwsTLSSPKIPins) > 0 || requireJWSTLSSPKIPins) && !jwsDiscoverTLSCert {
+				return fmt.Errorf("--jws-tls-spki-pin and --require-jws-tls-spki-pins require --jws-discover-tls-cert")
 			}
 			sourceDigestResults := []verify.SourceDigestResult{}
 			if verifySourceDigests || requireSourceDigests {
@@ -115,7 +120,14 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 					anchorSets = append(anchorSets, anchors)
 				}
 				if jwsDiscoverTLSCert {
-					anchors, err := verify.DiscoverTLSCertificateTrustAnchors(ctx, loadedCatalog, nil)
+					spkiPins, err := verify.ParseTLSSPKIPins(jwsTLSSPKIPins)
+					if err != nil {
+						return err
+					}
+					anchors, err := verify.DiscoverTLSCertificateTrustAnchorsWithOptions(ctx, loadedCatalog, nil, verify.TLSCertificateDiscoveryOptions{
+						SPKIPins:        spkiPins,
+						RequireSPKIPins: requireJWSTLSSPKIPins,
+					})
 					if err != nil {
 						return fmt.Errorf("discover TLS certificate trust anchors: %w", err)
 					}
@@ -245,6 +257,8 @@ func newVerifyCatalogCommand(root *rootOptions) *cobra.Command {
 	command.Flags().BoolVar(&jwsDiscoverOIDC, "jws-discover-oidc", false, "Discover OpenID Connect jwks_uri keys for verifying detached JWS trustManifest.signature values")
 	command.Flags().BoolVar(&jwsDiscoverSPIFFE, "jws-discover-spiffe", false, "Discover SPIFFE bundle JWKS keys for verifying detached JWS trustManifest.signature values")
 	command.Flags().BoolVar(&jwsDiscoverTLSCert, "jws-discover-tls-cert", false, "Discover HTTPS TLS leaf certificate keys for verifying detached JWS trustManifest.signature values")
+	command.Flags().StringArrayVar(&jwsTLSSPKIPins, "jws-tls-spki-pin", nil, "TLS certificate SPKI pin as host=sha256:<hex> for --jws-discover-tls-cert")
+	command.Flags().BoolVar(&requireJWSTLSSPKIPins, "require-jws-tls-spki-pins", false, "Require every --jws-discover-tls-cert host to have a matching --jws-tls-spki-pin")
 	command.Flags().BoolVar(&requireJWSSignatures, "require-jws-signatures", false, "Require every catalog entry to have a verifiable detached JWS trustManifest.signature")
 	return command
 }

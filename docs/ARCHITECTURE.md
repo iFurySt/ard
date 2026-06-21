@@ -324,8 +324,9 @@ conformance tool over older reference implementations. In particular:
   discovery can resolve HTTPS issuer metadata, validate `issuer`, and use OKP/Ed25519
   keys from `jwks_uri`. Opt-in TLS certificate discovery can use verified HTTPS leaf
   certificate Ed25519 keys. Opt-in SPIFFE discovery reads `SPIFFE-X509` attestation
-  `uri` values as host-matched HTTPS bundle JWKS endpoints. SPIFFE SVID validation,
-  non-`did:web` DID discovery, custom certificate policy, revocation, and non-Ed25519
+  `uri` values as host-matched HTTPS bundle JWKS endpoints. TLS certificate discovery
+  can enforce operator-supplied SPKI SHA-256 pins. SPIFFE SVID validation,
+  non-`did:web` DID discovery, certificate transparency, revocation, and non-Ed25519
   certificate keys are out of scope.
 - Treat HTTP(S), SPIFFE, and `did:web` `trustManifest.identity` trust-domain matching as
   catalog metadata consistency, not as proof of publisher ownership.
@@ -344,8 +345,8 @@ third-party or generated directory and record the source commit.
 
 ## Open Decisions
 
-- SPIFFE SVID validation, non-`did:web` DID, custom certificate policy, and broader
-  trust-anchor discovery depth for MVP.
+- SPIFFE SVID validation, non-`did:web` DID, certificate transparency, revocation, and
+  broader trust-anchor discovery depth for MVP.
 - Whether to add an embedded non-Postgres development mode.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.

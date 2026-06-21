@@ -3,7 +3,9 @@ package verify
 import (
 	"context"
 	"crypto/ed25519"
+	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -34,6 +36,11 @@ type SignatureResult struct {
 type SignatureOptions struct {
 	RequireSignatures bool
 	TrustAnchors      TrustAnchors
+}
+
+type TLSCertificateDiscoveryOptions struct {
+	SPKIPins        map[string]string
+	RequireSPKIPins bool
 }
 
 type TrustAnchors struct {
@@ -194,6 +201,10 @@ func DiscoverOIDCTrustAnchors(ctx context.Context, catalog ard.Catalog, client *
 }
 
 func DiscoverTLSCertificateTrustAnchors(ctx context.Context, catalog ard.Catalog, client *http.Client) (TrustAnchors, error) {
+	return DiscoverTLSCertificateTrustAnchorsWithOptions(ctx, catalog, client, TLSCertificateDiscoveryOptions{})
+}
+
+func DiscoverTLSCertificateTrustAnchorsWithOptions(ctx context.Context, catalog ard.Catalog, client *http.Client, options TLSCertificateDiscoveryOptions) (TrustAnchors, error) {
 	if client == nil {
 		client = &http.Client{Timeout: 20 * time.Second}
 	}
@@ -216,7 +227,7 @@ func DiscoverTLSCertificateTrustAnchors(ctx context.Context, catalog ard.Catalog
 		if err != nil {
 			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
 		}
-		key, err := loadTLSCertificateTrustAnchor(ctx, parsed, header.KeyID, client)
+		key, err := loadTLSCertificateTrustAnchor(ctx, parsed, header.KeyID, client, options)
 		if err != nil {
 			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
 		}
@@ -271,7 +282,7 @@ func DiscoverSPIFFETrustAnchors(ctx context.Context, catalog ard.Catalog, client
 	return MergeTrustAnchors(anchorSets...), nil
 }
 
-func loadTLSCertificateTrustAnchor(ctx context.Context, identityURL *url.URL, keyID string, client *http.Client) (TrustAnchorKey, error) {
+func loadTLSCertificateTrustAnchor(ctx context.Context, identityURL *url.URL, keyID string, client *http.Client, options TLSCertificateDiscoveryOptions) (TrustAnchorKey, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, identityURL.String(), nil)
 	if err != nil {
 		return TrustAnchorKey{}, err
@@ -288,7 +299,11 @@ func loadTLSCertificateTrustAnchor(ctx context.Context, identityURL *url.URL, ke
 	if response.TLS == nil || len(response.TLS.PeerCertificates) == 0 {
 		return TrustAnchorKey{}, errors.New("TLS peer certificate is required")
 	}
-	publicKey, ok := response.TLS.PeerCertificates[0].PublicKey.(ed25519.PublicKey)
+	leafCertificate := response.TLS.PeerCertificates[0]
+	if err := verifyTLSSPKIPin(identityURL.Hostname(), leafCertificate.RawSubjectPublicKeyInfo, options); err != nil {
+		return TrustAnchorKey{}, err
+	}
+	publicKey, ok := leafCertificate.PublicKey.(ed25519.PublicKey)
 	if !ok {
 		return TrustAnchorKey{}, errors.New("TLS leaf certificate public key must be Ed25519")
 	}
@@ -302,6 +317,66 @@ func loadTLSCertificateTrustAnchor(ctx context.Context, identityURL *url.URL, ke
 		sourceURL:  identityURL.String(),
 		sourceHost: identityURL.Hostname(),
 	}, nil
+}
+
+func ParseTLSSPKIPins(values []string) (map[string]string, error) {
+	pins := map[string]string{}
+	for index, value := range values {
+		host, pin, ok := strings.Cut(value, "=")
+		if !ok {
+			return nil, fmt.Errorf("TLS SPKI pin %d must use host=sha256:<hex>", index)
+		}
+		host = strings.ToLower(strings.TrimSpace(host))
+		if host == "" || strings.ContainsAny(host, "/\\") {
+			return nil, fmt.Errorf("TLS SPKI pin %d host is invalid", index)
+		}
+		normalizedPin, err := normalizeTLSSPKIPin(pin)
+		if err != nil {
+			return nil, fmt.Errorf("TLS SPKI pin %d: %w", index, err)
+		}
+		if _, exists := pins[host]; exists {
+			return nil, fmt.Errorf("duplicate TLS SPKI pin host %q", host)
+		}
+		pins[host] = normalizedPin
+	}
+	return pins, nil
+}
+
+func verifyTLSSPKIPin(host string, rawSPKI []byte, options TLSCertificateDiscoveryOptions) error {
+	host = strings.ToLower(strings.TrimSpace(host))
+	expectedPin, pinned := options.SPKIPins[host]
+	if !pinned {
+		if options.RequireSPKIPins {
+			return fmt.Errorf("TLS SPKI pin is required for host %q", host)
+		}
+		return nil
+	}
+	actualPin := tlsSPKIPin(rawSPKI)
+	if actualPin != expectedPin {
+		return fmt.Errorf("TLS SPKI pin mismatch for host %q", host)
+	}
+	return nil
+}
+
+func normalizeTLSSPKIPin(pin string) (string, error) {
+	pin = strings.ToLower(strings.TrimSpace(pin))
+	const prefix = "sha256:"
+	if !strings.HasPrefix(pin, prefix) {
+		return "", errors.New("pin must start with sha256:")
+	}
+	decoded, err := hex.DecodeString(strings.TrimPrefix(pin, prefix))
+	if err != nil {
+		return "", fmt.Errorf("pin digest must be hex: %w", err)
+	}
+	if len(decoded) != sha256.Size {
+		return "", fmt.Errorf("pin digest must be %d bytes", sha256.Size)
+	}
+	return prefix + hex.EncodeToString(decoded), nil
+}
+
+func tlsSPKIPin(rawSPKI []byte) string {
+	sum := sha256.Sum256(rawSPKI)
+	return "sha256:" + hex.EncodeToString(sum[:])
 }
 
 func loadOIDCTrustAnchors(ctx context.Context, issuer string, configurationURL string, sourceHost string, client *http.Client) (TrustAnchors, error) {

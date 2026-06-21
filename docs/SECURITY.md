@@ -101,6 +101,10 @@ Use this document to make secure defaults explicit and legible to agents.
 - `ard verify catalog --jws-discover-tls-cert` resolves HTTPS
   `trustManifest.identity` values through the normal TLS verifier and uses verified
   Ed25519 leaf certificate keys for detached JWS verification.
+- `ard verify catalog --jws-tls-spki-pin host=sha256:<hex>` constrains TLS certificate
+  discovery to a pinned leaf SubjectPublicKeyInfo digest for that host.
+- `ard verify catalog --require-jws-tls-spki-pins` requires every
+  `--jws-discover-tls-cert` host to have a matching SPKI pin.
 - `ard verify catalog --require-jws-signatures` requires every catalog entry to carry a
   verifiable detached JWS `trustManifest.signature`; it must be used with
   `--jws-trust-anchors`, `--jws-remote-jwks`, `--jws-discover-did-web`, or
@@ -115,8 +119,9 @@ Use this document to make secure defaults explicit and legible to agents.
   controls that key or whether the signed claims are true. `did:web`, OIDC, SPIFFE
   bundle, and TLS certificate discovery prove the key was advertised by the fetched DID
   document, OpenID Provider metadata, host-matched SPIFFE bundle URI, or verified HTTPS
-  leaf certificate at verification time, but they do not prove claim truth and do not
-  perform non-`did:web` DID or SPIFFE SVID validation.
+  leaf certificate at verification time. TLS SPKI pins constrain accepted TLS keys for a
+  host, but they do not prove claim truth and do not perform non-`did:web` DID, SPIFFE
+  SVID, certificate transparency, or revocation validation.
 - Detailed trust behavior is in `docs/TRUST.md`.
 
 ## Audit Events
@@ -182,7 +187,7 @@ Use this document to make secure defaults explicit and legible to agents.
 - No attestation truth, auditor trust, freshness verification, or provenance lineage
   truth verification yet.
 - No non-`did:web` DID or SPIFFE SVID verification yet.
-- No custom certificate policy, revocation, or non-Ed25519 certificate key verification
+- No certificate transparency, revocation, or non-Ed25519 certificate key verification
   yet.
 
 ## Scope
