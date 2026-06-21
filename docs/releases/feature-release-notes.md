@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-21 | Security | Enterprises can verify signed HTTPS trust metadata against a verified TLS leaf certificate key. | Added `ard verify catalog --jws-discover-tls-cert` to use normal TLS verification, require an Ed25519 leaf certificate public key, and reuse detached JWS verification. |
 | 2026-06-21 | Security | Enterprises can verify signed HTTPS issuer trust metadata through standard OIDC discovery. | Added `ard verify catalog --jws-discover-oidc` to fetch OpenID Provider metadata, validate `issuer`, fetch `jwks_uri`, extract OKP/Ed25519 keys, and reuse detached JWS verification. |
 | 2026-06-21 | Security | Enterprises can verify signed `did:web` trust metadata without manually supplying a JWKS URL. | Added `ard verify catalog --jws-discover-did-web` to resolve `did:web` DID documents over HTTPS, extract OKP/Ed25519 `verificationMethod[].publicKeyJwk` keys, and reuse detached JWS verification with DID document id/controller checks. |
 | 2026-06-21 | Release | Maintainers have a concise gate for deciding when a public tag is ready. | Added a pre-tag checklist covering version choice, release notes, local release dry run, live E2E, CI status, public surface review, and post-release artifact verification. |

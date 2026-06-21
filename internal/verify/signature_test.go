@@ -4,8 +4,13 @@ import (
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/base64"
 	"encoding/json"
+	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -13,6 +18,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/ifuryst/ard/internal/ard"
 )
@@ -230,6 +236,55 @@ func TestDiscoverOIDCTrustAnchorsRejectsIssuerMismatch(t *testing.T) {
 	_, err = DiscoverOIDCTrustAnchors(context.Background(), signedCatalog(trustManifest), server.Client())
 	if err == nil || !strings.Contains(err.Error(), "OIDC issuer") {
 		t.Fatalf("expected issuer mismatch, got %v", err)
+	}
+}
+
+func TestDiscoverTLSCertificateTrustAnchorsVerifiesLeafCertificateKey(t *testing.T) {
+	publicKey, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := newEd25519TLSServer(t, publicKey, privateKey, http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, _ = response.Write([]byte("ok"))
+	}))
+
+	trustManifest := map[string]any{
+		"identity":     server.URL,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "tls-ed25519", trustManifest, privateKey)
+	catalog := signedCatalog(trustManifest)
+	anchors, err := DiscoverTLSCertificateTrustAnchors(context.Background(), catalog, server.Client())
+	if err != nil {
+		t.Fatalf("discover TLS certificate trust anchors: %v", err)
+	}
+	results, err := VerifySignatures(catalog, SignatureOptions{TrustAnchors: anchors})
+	if err != nil {
+		t.Fatalf("verify signature with TLS certificate trust anchor: %v", err)
+	}
+	if len(results) != 1 || !results[0].Verified || results[0].KeyID != "tls-ed25519" || results[0].KeySource != server.URL {
+		t.Fatalf("unexpected results: %#v", results)
+	}
+}
+
+func TestDiscoverTLSCertificateTrustAnchorsRejectsNonEd25519Leaf(t *testing.T) {
+	_, privateKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+	server := httptest.NewTLSServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		_, _ = response.Write([]byte("ok"))
+	}))
+	t.Cleanup(server.Close)
+
+	trustManifest := map[string]any{
+		"identity":     server.URL,
+		"identityType": "https",
+	}
+	trustManifest["signature"] = testDetachedJWS(t, "tls-ed25519", trustManifest, privateKey)
+	_, err = DiscoverTLSCertificateTrustAnchors(context.Background(), signedCatalog(trustManifest), server.Client())
+	if err == nil || !strings.Contains(err.Error(), "TLS leaf certificate public key must be Ed25519") {
+		t.Fatalf("expected non-Ed25519 certificate error, got %v", err)
 	}
 }
 
@@ -497,6 +552,40 @@ func mustURLAuthority(t *testing.T, rawURL string) string {
 		t.Fatalf("parse URL: %v", err)
 	}
 	return parsed.Host
+}
+
+func newEd25519TLSServer(t *testing.T, publicKey ed25519.PublicKey, privateKey ed25519.PrivateKey, handler http.Handler) *httptest.Server {
+	t.Helper()
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "127.0.0.1",
+		},
+		NotBefore:             time.Now().Add(-time.Hour),
+		NotAfter:              time.Now().Add(time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+		DNSNames:              []string{"localhost"},
+		IPAddresses:           []net.IP{net.ParseIP("127.0.0.1"), net.ParseIP("::1")},
+	}
+	certDER, err := x509.CreateCertificate(rand.Reader, template, template, publicKey, privateKey)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+	server := httptest.NewUnstartedServer(handler)
+	server.TLS = &tls.Config{
+		Certificates: []tls.Certificate{
+			{
+				Certificate: [][]byte{certDER},
+				PrivateKey:  privateKey,
+			},
+		},
+		MinVersion: tls.VersionTLS12,
+	}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+	return server
 }
 
 func signedCatalog(trustManifest map[string]any) ard.Catalog {

@@ -44,6 +44,7 @@ ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-remote-jwks https://example.com/.well-known/jwks.json
 ard verify catalog ./ai-catalog.json --jws-discover-did-web
 ard verify catalog ./ai-catalog.json --jws-discover-oidc
+ard verify catalog ./ai-catalog.json --jws-discover-tls-cert
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
 
@@ -130,6 +131,14 @@ path. This follows OpenID Connect Discovery's required `issuer` and HTTPS `jwks_
 metadata fields:
 https://openid.net/specs/openid-connect-discovery-1_0.html
 
+`--jws-discover-tls-cert` performs explicit key discovery from the HTTPS
+`trustManifest.identity` TLS leaf certificate. It uses the normal Go TLS verifier for
+the HTTPS request, requires the verified leaf certificate public key to be Ed25519, and
+then runs the same detached JWS verification path. This proves the same TLS endpoint
+presented the key at verification time; it does not evaluate custom certificate policy,
+certificate transparency, revocation, extended compliance rules, or non-Ed25519
+certificate keys.
+
 ## Current Scope
 
 - Implemented: `trustManifest.identity` presence validation.
@@ -179,11 +188,14 @@ https://openid.net/specs/openid-connect-discovery-1_0.html
 - Implemented: opt-in OpenID Connect issuer discovery through
   `ard verify catalog --jws-discover-oidc`, validating the discovered `issuer` and
   fetching OKP/Ed25519 keys from `jwks_uri`.
+- Implemented: opt-in HTTPS TLS leaf certificate key discovery through
+  `ard verify catalog --jws-discover-tls-cert` for verified Ed25519 leaf certificates.
 - Implemented: strict catalog signature requirements with
   `ard verify catalog --require-jws-signatures`.
 - Implemented: admin audit event hash chaining and chain verification.
 - Not implemented yet: attestation truth, auditor trust, or freshness verification.
-- Not implemented yet: non-`did:web` DID methods, SPIFFE, or certificate key discovery.
+- Not implemented yet: non-`did:web` DID methods, SPIFFE SVID validation, custom
+  certificate policy, revocation, or non-Ed25519 certificate keys.
 - Not implemented yet: externally anchored or signed audit trails.
 
 Identity trust-domain matching is a metadata consistency check. It rejects entries that
@@ -201,10 +213,12 @@ Provenance digest verification proves byte integrity for fetched HTTP(S) provena
 sources only. It does not resolve URN source identifiers, prove lineage truth, prove who
 published the source, or decide whether a provenance relation is semantically valid.
 
-JWS verification proves the configured, explicitly fetched, `did:web`-discovered, or
-OIDC-discovered Ed25519 key signed the trust manifest bytes that `ard` verified.
-`did:web` discovery proves that the key was advertised by the fetched DID document at
-verification time. OIDC discovery proves that the key was advertised by the issuer's
-OpenID Provider metadata and JWKS at verification time. Neither path proves claim truth,
-validates SPIFFE identities, validates certificates beyond HTTPS transport validation, or
-decides whether the signed claims are true.
+JWS verification proves the configured, explicitly fetched, `did:web`-discovered,
+OIDC-discovered, or TLS-certificate-discovered Ed25519 key signed the trust manifest
+bytes that `ard` verified. `did:web` discovery proves that the key was advertised by the
+fetched DID document at verification time. OIDC discovery proves that the key was
+advertised by the issuer's OpenID Provider metadata and JWKS at verification time. TLS
+certificate discovery proves that the verified HTTPS endpoint presented the Ed25519 leaf
+certificate key at verification time. None of these paths prove claim truth, validate
+SPIFFE identities, apply custom certificate policy, or decide whether the signed claims
+are true.

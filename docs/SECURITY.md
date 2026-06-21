@@ -94,10 +94,13 @@ Use this document to make secure defaults explicit and legible to agents.
 - `ard verify catalog --jws-discover-oidc` resolves HTTPS
   `trustManifest.identity` values as OpenID Connect issuers, validates discovered
   `issuer`, fetches `jwks_uri`, and uses OKP/Ed25519 keys for detached JWS verification.
+- `ard verify catalog --jws-discover-tls-cert` resolves HTTPS
+  `trustManifest.identity` values through the normal TLS verifier and uses verified
+  Ed25519 leaf certificate keys for detached JWS verification.
 - `ard verify catalog --require-jws-signatures` requires every catalog entry to carry a
   verifiable detached JWS `trustManifest.signature`; it must be used with
   `--jws-trust-anchors`, `--jws-remote-jwks`, `--jws-discover-did-web`, or
-  `--jws-discover-oidc`.
+  `--jws-discover-oidc`, or `--jws-discover-tls-cert`.
 - Source digest verification proves byte integrity for the fetched URL only. It does not
   prove publisher identity, trust schema authority, attestation truth, runtime safety, or
   compliance status. Attestation digest verification proves byte integrity for fetched
@@ -105,10 +108,11 @@ Use this document to make secure defaults explicit and legible to agents.
   digest verification proves byte integrity for fetched HTTP(S) provenance sources only;
   it does not resolve URN source identifiers or prove lineage truth. JWS verification
   proves the configured key signed the `trustManifest` payload; it does not prove who
-  controls that key or whether the signed claims are true. `did:web` and OIDC discovery
-  prove the key was advertised by the fetched DID document or OpenID Provider metadata at
-  verification time, but they do not prove claim truth and do not perform non-`did:web`
-  DID, SPIFFE, or certificate discovery.
+  controls that key or whether the signed claims are true. `did:web`, OIDC, and TLS
+  certificate discovery prove the key was advertised by the fetched DID document,
+  OpenID Provider metadata, or verified HTTPS leaf certificate at verification time, but
+  they do not prove claim truth and do not perform non-`did:web` DID or SPIFFE
+  validation.
 - Detailed trust behavior is in `docs/TRUST.md`.
 
 ## Audit Events
@@ -173,7 +177,9 @@ Use this document to make secure defaults explicit and legible to agents.
 - No signed policy bundle or external policy engine yet.
 - No attestation truth, auditor trust, freshness verification, or provenance lineage
   truth verification yet.
-- No non-`did:web` DID, SPIFFE, or certificate key-discovery verification yet.
+- No non-`did:web` DID or SPIFFE key-discovery verification yet.
+- No custom certificate policy, revocation, or non-Ed25519 certificate key verification
+  yet.
 
 ## Scope
 

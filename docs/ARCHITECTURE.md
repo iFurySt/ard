@@ -320,8 +320,10 @@ conformance tool over older reference implementations. In particular:
   remote JWKS URLs can provide trust anchors. Opt-in `did:web` discovery can resolve DID
   documents and use OKP/Ed25519 `verificationMethod[].publicKeyJwk` keys. Opt-in OIDC
   discovery can resolve HTTPS issuer metadata, validate `issuer`, and use OKP/Ed25519
-  keys from `jwks_uri`. SPIFFE, certificate, and non-`did:web` DID discovery are not
-  implemented.
+  keys from `jwks_uri`. Opt-in TLS certificate discovery can use verified HTTPS leaf
+  certificate Ed25519 keys. SPIFFE and non-`did:web` DID discovery are not implemented;
+  custom certificate policy, revocation, and non-Ed25519 certificate keys are out of
+  scope.
 - Treat HTTP(S), SPIFFE, and `did:web` `trustManifest.identity` trust-domain matching as
   catalog metadata consistency, not as proof of publisher ownership.
 - Keep `score` strictly as semantic relevance, not a trust or safety signal.
@@ -339,8 +341,8 @@ third-party or generated directory and record the source commit.
 
 ## Open Decisions
 
-- SPIFFE, certificate, non-`did:web` DID, and broader trust-anchor discovery depth for
-  MVP.
+- SPIFFE, non-`did:web` DID, custom certificate policy, and broader trust-anchor
+  discovery depth for MVP.
 - Whether to add an embedded non-Postgres development mode.
 - Whether to vendor selected upstream spec artifacts, use a git submodule, or fetch pinned
   artifacts during development.

@@ -188,6 +188,79 @@ func DiscoverOIDCTrustAnchors(ctx context.Context, catalog ard.Catalog, client *
 	return MergeTrustAnchors(anchorSets...), nil
 }
 
+func DiscoverTLSCertificateTrustAnchors(ctx context.Context, catalog ard.Catalog, client *http.Client) (TrustAnchors, error) {
+	if client == nil {
+		client = &http.Client{Timeout: 20 * time.Second}
+	}
+	anchors := TrustAnchors{}
+	seen := map[string]struct{}{}
+	for _, entry := range catalog.Entries {
+		signature := trustString(entry.TrustManifest, "signature")
+		if signature == "" {
+			continue
+		}
+		identity := trustString(entry.TrustManifest, "identity")
+		parsed, ok, err := httpsTrustIdentityURL(identity)
+		if err != nil {
+			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
+		}
+		if !ok {
+			continue
+		}
+		header, _, _, err := detachedCompactJWS(signature, entry.TrustManifest)
+		if err != nil {
+			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
+		}
+		key, err := loadTLSCertificateTrustAnchor(ctx, parsed, header.KeyID, client)
+		if err != nil {
+			return TrustAnchors{}, fmt.Errorf("%s: %w", entry.Identifier, err)
+		}
+		seenKey := key.KeyID + "\x00" + key.PublicKey + "\x00" + key.sourceHost
+		if _, ok := seen[seenKey]; ok {
+			continue
+		}
+		seen[seenKey] = struct{}{}
+		anchors.Keys = append(anchors.Keys, key)
+	}
+	if err := anchors.prepare(); err != nil {
+		return TrustAnchors{}, err
+	}
+	return anchors, nil
+}
+
+func loadTLSCertificateTrustAnchor(ctx context.Context, identityURL *url.URL, keyID string, client *http.Client) (TrustAnchorKey, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, identityURL.String(), nil)
+	if err != nil {
+		return TrustAnchorKey{}, err
+	}
+	request.Header.Set("Accept", "*/*")
+	request.Header.Set("User-Agent", "ard/0.1")
+	requestid.SetHeader(request.Header, ctx)
+	tracecontext.SetHeader(request.Header, ctx)
+	response, err := client.Do(request)
+	if err != nil {
+		return TrustAnchorKey{}, err
+	}
+	defer response.Body.Close()
+	if response.TLS == nil || len(response.TLS.PeerCertificates) == 0 {
+		return TrustAnchorKey{}, errors.New("TLS peer certificate is required")
+	}
+	publicKey, ok := response.TLS.PeerCertificates[0].PublicKey.(ed25519.PublicKey)
+	if !ok {
+		return TrustAnchorKey{}, errors.New("TLS leaf certificate public key must be Ed25519")
+	}
+	if strings.TrimSpace(keyID) == "" {
+		keyID = "tls-cert:" + identityURL.Hostname()
+	}
+	return TrustAnchorKey{
+		KeyID:      keyID,
+		Algorithm:  "EdDSA",
+		PublicKey:  base64.RawURLEncoding.EncodeToString(publicKey),
+		sourceURL:  identityURL.String(),
+		sourceHost: identityURL.Hostname(),
+	}, nil
+}
+
 func loadOIDCTrustAnchors(ctx context.Context, issuer string, configurationURL string, sourceHost string, client *http.Client) (TrustAnchors, error) {
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, configurationURL, nil)
 	if err != nil {
@@ -228,6 +301,23 @@ func loadOIDCTrustAnchors(ctx context.Context, issuer string, configurationURL s
 		return TrustAnchors{}, fmt.Errorf("load OIDC jwks_uri %s: %w", metadata.JWKSURI, err)
 	}
 	return anchors, nil
+}
+
+func httpsTrustIdentityURL(identity string) (*url.URL, bool, error) {
+	parsed, err := url.Parse(strings.TrimSpace(identity))
+	if err != nil {
+		return nil, false, err
+	}
+	if parsed.Scheme != "https" {
+		return nil, false, nil
+	}
+	if parsed.Hostname() == "" {
+		return nil, true, errors.New("HTTPS trustManifest.identity must include a host")
+	}
+	if parsed.Fragment != "" {
+		return nil, true, errors.New("HTTPS trustManifest.identity must not include a fragment")
+	}
+	return parsed, true, nil
 }
 
 func DiscoverDIDWebTrustAnchors(ctx context.Context, catalog ard.Catalog, client *http.Client) (TrustAnchors, error) {

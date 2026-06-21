@@ -67,6 +67,7 @@ ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json
 ard verify catalog ./ai-catalog.json --jws-remote-jwks https://example.com/.well-known/jwks.json
 ard verify catalog ./ai-catalog.json --jws-discover-did-web
 ard verify catalog ./ai-catalog.json --jws-discover-oidc
+ard verify catalog ./ai-catalog.json --jws-discover-tls-cert
 ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.json --require-jws-signatures
 ```
 
@@ -103,6 +104,7 @@ bin/ard verify catalog ./ai-catalog.json --jws-trust-anchors ./trust-anchors.jso
 bin/ard verify catalog ./ai-catalog.json --jws-remote-jwks https://example.com/.well-known/jwks.json
 bin/ard verify catalog ./ai-catalog.json --jws-discover-did-web
 bin/ard verify catalog ./ai-catalog.json --jws-discover-oidc
+bin/ard verify catalog ./ai-catalog.json --jws-discover-tls-cert
 bin/ard --database-url "$DATABASE_URL" crawl https://example.com/
 bin/ardctl --database-url "$DATABASE_URL" export catalog -o ai-catalog.json
 
@@ -155,7 +157,8 @@ artifacts can be pinned and verified with `trustManifest.sourceDigest`; ingestio
 can require trust metadata before persistence. Detached JWS
 `trustManifest.signature` values can be verified against explicit Ed25519, local JWKS,
 explicit HTTPS remote JWKS, discovered `did:web` DID document keys, or discovered OIDC
-`jwks_uri` keys. Attestation documents can be fetched and verified against pinned
+`jwks_uri` keys. HTTPS TLS leaf certificate Ed25519 keys can also be used as explicit
+verification anchors. Attestation documents can be fetched and verified against pinned
 `trustManifest.attestations[].digest` values, and HTTP(S) provenance sources can be
 verified against pinned
 `trustManifest.provenance[].sourceDigest` values.
