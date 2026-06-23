@@ -13,6 +13,7 @@ type rootOptions struct {
 	adminTokensFile    string
 	policyFile         string
 	otlpTracesEndpoint string
+	consoleDir         string
 }
 
 func NewRootCommand() *cobra.Command {
@@ -40,6 +41,7 @@ func NewServerCommand() *cobra.Command {
 	addAdminTokensFileFlag(command, &options)
 	addPolicyFlag(command, &options)
 	addOTLPTracesEndpointFlag(command, &options)
+	addConsoleDirFlag(command, &options)
 	command.Flags().StringVar(&addr, "addr", ":8080", "HTTP listen address")
 	command.AddCommand(newVersionCommand())
 	return command
@@ -120,5 +122,14 @@ func addOTLPTracesEndpointFlag(command *cobra.Command, options *rootOptions) {
 		"otlp-traces-endpoint",
 		"",
 		"Optional OTLP/HTTP traces endpoint. Defaults to ARD_OTLP_TRACES_ENDPOINT.",
+	)
+}
+
+func addConsoleDirFlag(command *cobra.Command, options *rootOptions) {
+	command.Flags().StringVar(
+		&options.consoleDir,
+		"console-dir",
+		"",
+		"Optional OpenARD Console static build directory served at /console. Defaults to ARD_CONSOLE_DIR.",
 	)
 }

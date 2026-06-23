@@ -69,6 +69,9 @@ func TestCLICommandOmitsServe(t *testing.T) {
 	if command.Flag("otlp-traces-endpoint") != nil {
 		t.Fatal("ardctl should not expose server OTLP trace exporter flag")
 	}
+	if command.Flag("console-dir") != nil {
+		t.Fatal("ardctl should not expose server console directory flag")
+	}
 }
 
 func TestServerCommandRunsAtRoot(t *testing.T) {
@@ -87,6 +90,9 @@ func TestServerCommandRunsAtRoot(t *testing.T) {
 	}
 	if command.Flag("otlp-traces-endpoint") == nil {
 		t.Fatal("ard-server should expose OTLP trace exporter flag")
+	}
+	if command.Flag("console-dir") == nil {
+		t.Fatal("ard-server should expose console directory flag")
 	}
 	if _, _, err := command.Find([]string{"version"}); err != nil {
 		t.Fatalf("expected ard-server version command: %v", err)

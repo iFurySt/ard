@@ -18,8 +18,9 @@ Run the console:
 make console-dev
 ```
 
-The Vite dev server listens on `http://localhost:5173` and proxies OpenARD API routes
-to `http://localhost:8080` by default. Override the proxy target when needed:
+The Vite dev server listens on `http://localhost:5173/console/` and proxies OpenARD
+API routes to `http://localhost:8080` by default. Override the proxy target when
+needed:
 
 ```sh
 ARD_CONSOLE_PROXY_TARGET=http://127.0.0.1:9090 make console-dev
@@ -28,6 +29,20 @@ ARD_CONSOLE_PROXY_TARGET=http://127.0.0.1:9090 make console-dev
 In the console Settings page, leave the Registry API base URL empty when using the dev
 proxy or same-origin deployment. Set an admin bearer token to unlock protected Catalog,
 Reviews, Audit, and management actions.
+
+## Registry-Hosted Console
+
+Production builds default to the `/console/` base path so `ard-server` can serve them
+from the registry origin:
+
+```sh
+make console-build
+bin/ard-server --console-dir apps/console/dist
+```
+
+`--console-dir` defaults to `ARD_CONSOLE_DIR` when the flag is omitted. Keep the
+console Settings API base URL empty for this same-origin mode. Use
+`ARD_CONSOLE_BASE=/` only for a standalone static host that serves the app from `/`.
 
 ## Build And Checks
 
@@ -44,7 +59,7 @@ and Vite production build.
 For UI changes, verify through the in-app browser with DOM/style inspection, screenshots,
 and console/network checks. At minimum, cover:
 
-- first render at `/overview`
+- first render at `/console/overview`
 - sidebar navigation across administrator sections
 - Settings save/clear behavior
 - an API-backed page against a local registry when available

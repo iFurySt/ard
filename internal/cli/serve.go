@@ -25,6 +25,7 @@ func newServeCommand(root *rootOptions) *cobra.Command {
 	addAdminTokenFlag(command, root)
 	addAdminTokensFileFlag(command, root)
 	addOTLPTracesEndpointFlag(command, root)
+	addConsoleDirFlag(command, root)
 	return command
 }
 
@@ -62,6 +63,7 @@ func runServer(cmd *cobra.Command, root *rootOptions, addr string) error {
 		AdminTokensFile: adminTokensFile,
 		Policy:          loadedPolicy,
 		TraceExporter:   traceExporter,
+		ConsoleDir:      config.ConsoleDir(root.consoleDir),
 	})
 	fmt.Fprintf(cmd.ErrOrStderr(), "listening on %s (%s)\n", addr, buildinfo.Current().String())
 	return router.Run(addr)

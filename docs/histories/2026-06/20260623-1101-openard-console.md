@@ -17,9 +17,11 @@
 - Area: Web console
 - Key actions:
   - Added a Vite/React workspace for `OpenARD Console`.
-  - Reused the reference console's CDS component primitives, typography, and font assets.
+  - Reused the reference console's CDS component primitives and styling approach while
+    keeping font assets product-neutral.
   - Added administrator pages for Overview, Discover, Catalog, Add Resource, Reviews,
     Audit Log, Operations, and Settings.
+  - Added optional registry-hosted static console serving at `/console`.
   - Added npm workspace scripts plus Makefile targets for console development, linting,
     and builds.
   - Documented local console development and browser verification expectations.
@@ -31,10 +33,17 @@ uses existing OpenARD HTTP APIs before adding new server features, so the UI can
 manage lifecycle status, reviews, audit inspection, JSON imports, public discovery, and
 operations checks without widening backend scope.
 
+The console build is also deployable as a same-origin registry asset through
+`--console-dir` / `ARD_CONSOLE_DIR`, reducing local setup to one server process after the
+frontend has been built.
+
 ### Files Modified
 
 - `package.json`
 - `Makefile`
 - `apps/console/`
+- `internal/cli/`
+- `internal/config/`
+- `internal/httpapi/`
 - `docs/FRONTEND.md`
-- `docs/histories/2026-06/20260623-0000-openard-console.md`
+- `docs/histories/2026-06/20260623-1101-openard-console.md`

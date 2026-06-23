@@ -6,7 +6,11 @@ Cobra, Gin, GORM, and Postgres.
 ## Product Surfaces
 
 - Registry server: self-hosted ARD registry exposing discovery, search, health, and
-  catalog endpoints through Gin, plus optional token-protected admin routes.
+  catalog endpoints through Gin, plus optional token-protected admin routes and
+  same-origin OpenARD Console static serving at `/console`.
+- OpenARD Console: administrator-facing Vite/React app under `apps/console` for
+  discovery inspection, catalog lifecycle management, review decisions, audit
+  verification, operations checks, and registry API/token configuration.
 - CLI: Cobra operational entry point for `serve`, `add catalog`, `add mcp`, `add a2a`,
   `add skill`, `add openapi`, `admin`, `browse`, `crawl`, `export catalog`, `health`,
   `list`, `metrics`, `remove`, `verify catalog`, `version`, and `search` today.

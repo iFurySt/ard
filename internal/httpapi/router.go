@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +34,7 @@ type Options struct {
 	AdminTokensFile string
 	Policy          *policy.Policy
 	TraceExporter   traceexporter.Exporter
+	ConsoleDir      string
 }
 
 func NewRouter(store *store.Store) *gin.Engine {
@@ -78,7 +81,49 @@ func NewRouterWithOptions(store *store.Store, options Options) *gin.Engine {
 		admin.PATCH("/entries/:identifier/status", server.requireAdminPermission(adminPermissionOperate), server.adminSetEntryStatus)
 		admin.DELETE("/entries/:identifier", server.requireAdminPermission(adminPermissionOperate), server.adminDeleteEntry)
 	}
+	mountConsole(router, options.ConsoleDir)
 	return router
+}
+
+func mountConsole(router *gin.Engine, consoleDir string) {
+	consoleDir = strings.TrimSpace(consoleDir)
+	if consoleDir == "" {
+		return
+	}
+	handler := consoleHandler(consoleDir)
+	router.GET("/console", handler)
+	router.GET("/console/*filepath", handler)
+}
+
+func consoleHandler(consoleDir string) gin.HandlerFunc {
+	return func(context *gin.Context) {
+		requestedPath := strings.TrimPrefix(context.Param("filepath"), "/")
+		if requestedPath == "" {
+			context.File(filepath.Join(consoleDir, "index.html"))
+			return
+		}
+
+		cleanedPath := filepath.Clean(requestedPath)
+		if cleanedPath == "." {
+			context.File(filepath.Join(consoleDir, "index.html"))
+			return
+		}
+		if filepath.IsAbs(cleanedPath) || !filepath.IsLocal(cleanedPath) {
+			context.Status(http.StatusNotFound)
+			return
+		}
+
+		filePath := filepath.Join(consoleDir, cleanedPath)
+		if fileInfo, err := os.Stat(filePath); err == nil && !fileInfo.IsDir() {
+			context.File(filePath)
+			return
+		}
+		if cleanedPath == "assets" || strings.HasPrefix(cleanedPath, "assets"+string(filepath.Separator)) {
+			context.Status(http.StatusNotFound)
+			return
+		}
+		context.File(filepath.Join(consoleDir, "index.html"))
+	}
 }
 
 func (server Server) health(context *gin.Context) {

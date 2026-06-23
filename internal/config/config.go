@@ -41,3 +41,10 @@ func OTLPTracesEndpoint(flagValue string) string {
 	}
 	return os.Getenv("ARD_OTLP_TRACES_ENDPOINT")
 }
+
+func ConsoleDir(flagValue string) string {
+	if flagValue != "" {
+		return flagValue
+	}
+	return os.Getenv("ARD_CONSOLE_DIR")
+}
