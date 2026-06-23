@@ -31,34 +31,27 @@ This document defines the default collaboration model for an agent-first reposit
 - If the app has a UI, make it locally bootable and testable in an isolated worktree.
 - If the app has logs, metrics, or traces, expose them in a local workflow agents can query.
 
-## CI/CD And Release Posture
+## Local Verification And Release Posture
 
-- GitHub Actions CI runs formatting checks, unit tests, builds, and Postgres integration
-  tests on pushes to `main` and pull requests.
-- CI uses a Postgres 16 service and passes `ARD_TEST_DATABASE_URL` into
-  `make test-integration`; local runs without that variable still use Docker.
+- This repository currently does not ship CI/CD workflows. Run the relevant local
+  verification commands before pushing or tagging changes.
+- `make test-integration` uses Docker locally unless `ARD_TEST_DATABASE_URL` points at
+  an already running Postgres instance.
 - `make test-e2e` runs a heavier local E2E flow with live MCP, Skill, and OpenAPI
-  artifacts, policy-gate checks, plus the checked-in A2A fixture. It is intentionally
-  outside the default CI path because it depends on external network availability.
-- `.github/workflows/e2e.yml` runs the same `make test-e2e` gate on manual dispatch and
-  on a weekly schedule, so live artifact drift is visible without making pull requests
-  depend on external services.
+  artifacts, policy-gate checks, plus the checked-in A2A fixture. It depends on external
+  network availability, so run it deliberately when validating release readiness or
+  artifact-facing changes.
 - `make test-compose` builds the registry image and verifies the Docker Compose
   deployment path against Postgres.
 - `make package` builds versioned Linux/macOS binary archives for all entrypoints and
-  writes an SPDX SBOM plus SHA-256 checksums under `dist/`; CI runs it as a release
-  packaging gate.
+  writes an SPDX SBOM plus SHA-256 checksums under `dist/`.
 - `make check-public-surface` validates the expected exported Go SDK symbols and CLI
   command/flag surface before public releases.
-- `make check-workflows` validates expected CI, E2E, and release workflow invariants.
 - `VERSION=v0.1.0 make release-dry-run` validates the pre-tag release path by checking
-  formatting, public API/CLI surface, workflow invariants, external Go SDK import,
-  package checksums, archive contents, and local packaged binary version metadata.
-- Pushing a `v*` tag runs the release workflow, publishes `dist/` artifacts to GitHub
-  Releases, and generates signed GitHub artifact attestations for provenance plus SBOM.
-  Run `docs/releases/PRE_TAG_CHECKLIST.md` before creating a public tag. Local
-  container, binary archive, checksum, and release workflows are documented in
-  `docs/DEPLOYMENT.md`.
+  formatting, public API/CLI surface, external Go SDK import, package checksums, archive
+  contents, and local packaged binary version metadata.
+- Run `docs/releases/PRE_TAG_CHECKLIST.md` before creating a public tag. Local container,
+  binary archive, checksum, and release workflows are documented in `docs/DEPLOYMENT.md`.
 
 ## Configuration Hygiene
 

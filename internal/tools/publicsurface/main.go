@@ -198,6 +198,7 @@ var expectedCLI = map[string]cliSurface{
 			"addr",
 			"admin-token",
 			"admin-tokens-file",
+			"console-dir",
 			"database-url",
 			"otlp-traces-endpoint",
 			"policy-file",

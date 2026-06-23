@@ -87,7 +87,6 @@ cd "$ROOT_DIR"
 echo "release dry run: $VERSION"
 make fmt-check
 make check-public-surface
-make check-workflows
 make test-public-go-client
 VERSION="$VERSION" PLATFORMS="$PLATFORMS" make package
 verify_checksums

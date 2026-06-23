@@ -29,14 +29,13 @@ Cobra, Gin, GORM, and Postgres.
   archives for `ard`, `ardctl`, and `ard-server`, plus an SPDX SBOM and SHA-256 checksum
   manifest. Build metadata is embedded into all packaged binaries and exposed through
   CLI version commands, server startup logs, and `/health`. `make release-dry-run`
-  exercises the same packaging path with pre-tag public surface, workflow, SDK,
-  checksum, archive-content, and packaged-binary version checks.
-- Release publishing: pushing a `v*` tag runs the GitHub Actions release workflow, checks
-  package checksums, generates signed GitHub artifact attestations for release
-  provenance and SBOM, and publishes the `dist/` artifacts to a GitHub release.
-- E2E automation: `.github/workflows/e2e.yml` runs `make test-e2e` manually and weekly
-  so live MCP, Skill, OpenAPI, A2A, policy, federation, and SDK drift is visible without
-  making every pull request depend on external services.
+  exercises the same packaging path with pre-tag public surface, SDK, checksum,
+  archive-content, and packaged-binary version checks.
+- Release publishing: the repository currently has no checked-in CI/CD or tag-triggered
+  publishing workflow. Maintainers build and verify `dist/` artifacts locally before
+  any manual release publication.
+- E2E verification: `make test-e2e` runs live MCP, Skill, OpenAPI, A2A, policy,
+  federation, and SDK checks locally when maintainers need live-artifact confidence.
 - Client flow: `ard search` and the public Go client send spec-shaped `SearchRequest`
   bodies to a registry. The registry rejects unknown request/query fields, missing
   `query.text`, and unsupported `federation` values instead of silently normalizing
@@ -153,8 +152,6 @@ Cobra, Gin, GORM, and Postgres.
   packaging.
 - `internal/tools/publicsurface/`: repository-native public API and CLI surface checker
   for pre-release compatibility gates.
-- `internal/tools/workflowcheck/`: repository-native GitHub Actions workflow guard for
-  CI, E2E, and release automation invariants.
 - `pkg/ard/`: public ARD model aliases and validation helpers for Go consumers.
 - `pkg/client/`: public HTTP client for unauthenticated registry discovery surfaces and
   token-protected admin management routes.

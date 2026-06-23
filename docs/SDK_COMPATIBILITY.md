@@ -10,8 +10,8 @@ notice.
 
 ## Current Status
 
-The Go SDK is pre-1.0. Use tagged releases for production dependencies once release
-automation starts.
+The Go SDK is pre-1.0. Use tagged releases for production dependencies once maintainers
+start publishing public release artifacts.
 
 Before `v1.0.0`:
 
@@ -59,4 +59,4 @@ checker intentionally.
 `make test-public-go-client` creates a temporary external module, imports the public SDK,
 and exercises the public discovery, catalog, health, metrics, explore, admin
 list/upsert/status, review, audit, delete, validation helper, publisher helper, and
-`HTTPError` surfaces. CI runs both checks on every push and pull request.
+`HTTPError` surfaces. Run both checks locally before publishing SDK-facing changes.

@@ -60,10 +60,10 @@ VERSION=v0.1.0 make release-dry-run
 ```
 
 The dry run validates the release version shape, formatting, public Go SDK and CLI
-surface, workflow invariants, external Go SDK import coverage, release archive
-generation, SHA-256 checksum verification, expected archive contents, and embedded
-version metadata in the packaged binaries for the local OS/architecture. It does not
-create a git tag, publish a GitHub release, or request artifact attestations.
+surface, external Go SDK import coverage, release archive generation, SHA-256 checksum
+verification, expected archive contents, and embedded version metadata in the packaged
+binaries for the local OS/architecture. It does not create a git tag or publish a
+GitHub release.
 
 Use `PLATFORMS` to narrow local iterations while preserving the same package path:
 
@@ -76,33 +76,28 @@ public tag review.
 
 ## Release Publishing
 
-Push a `v*` tag to publish a GitHub release:
+This repository currently does not ship an automated release workflow. Before publishing
+a release, build and verify the local artifacts:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+VERSION=v0.1.0 make release-dry-run
 ```
 
-The release workflow packages the binaries with `VERSION` set to the tag name and
-`COMMIT` set to the triggering commit, verifies `dist/checksums.txt`, generates GitHub
-artifact attestations for release provenance and the SPDX SBOM, and uploads the `dist/`
-artifacts to the GitHub release.
+If maintainers create a public GitHub release, upload the verified `dist/` artifacts and
+keep `dist/checksums.txt` with the archives and SBOM. Tagging alone does not publish
+artifacts.
 
-## Scheduled E2E
+## Local E2E
 
-`.github/workflows/e2e.yml` can be run manually and also runs weekly. It executes
-`make test-e2e`, which starts a temporary Postgres-backed registry, imports live MCP,
-Skill, and OpenAPI artifacts, checks the A2A fixture, exercises policy, federation,
-health, metrics, and the external Go admin SDK flow, then tears down its local
-containers and processes.
+`make test-e2e` starts a temporary Postgres-backed registry, imports live MCP, Skill,
+and OpenAPI artifacts, checks the A2A fixture, exercises policy, federation, health,
+metrics, and the external Go admin SDK flow, then tears down its local containers and
+processes.
 
 Consumers can verify a downloaded archive with:
 
 ```sh
 shasum -a 256 -c checksums.txt
-gh attestation verify ./ard_v0.1.0_linux_amd64.tar.gz -R iFurySt/ard
-gh attestation verify ./ard_v0.1.0_linux_amd64.tar.gz -R iFurySt/ard \
-  --predicate-type https://spdx.dev/Document/v2.3
 ```
 
 Run the server against Postgres:
@@ -203,5 +198,4 @@ through the public API, checks metrics, and then removes the compose stack and v
   reviewed configuration.
 - Rotate role token files with an atomic write-and-rename so the server sees complete
   JSON. Invalid updates are ignored and the last valid token set remains active.
-- Binary release archives include an SPDX SBOM and SHA-256 checksums. Tagged GitHub
-  releases generate signed provenance and SBOM attestations.
+- Binary release archives include an SPDX SBOM and SHA-256 checksums.
