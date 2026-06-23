@@ -23,6 +23,8 @@
     Audit Log, Operations, and Settings.
   - Added optional registry-hosted static console serving at `/console`.
   - Bundled the console into the Docker image and compose deployment path.
+  - Added shared resource detail inspection from Discover, Catalog, Reviews, and
+    registry referral cards.
   - Added npm workspace scripts plus Makefile targets for console development, linting,
     and builds.
   - Documented local console development and browser verification expectations.
@@ -41,6 +43,11 @@ frontend has been built.
 The container image builds that console asset during Docker builds and serves it from
 `/usr/share/openard/console`, so the Compose stack exposes the administrator UI at
 `/console` without a separate frontend process.
+
+Follow-up detail inspection keeps the UI on existing API contracts: list, search, and
+review responses already include the resource entry shape, so administrators can inspect
+summary fields, representative queries, trust manifests, metadata, and raw entry JSON
+before taking lifecycle or governance actions without adding a new server endpoint.
 
 ### Files Modified
 

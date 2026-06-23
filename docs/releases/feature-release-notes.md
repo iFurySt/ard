@@ -4,6 +4,7 @@
 
 | Date | Area | User Impact | Change Summary |
 | --- | --- | --- | --- |
+| 2026-06-23 | Console | Administrators can inspect a resource before changing lifecycle or review state. | Added shared resource detail dialogs across Discover, Catalog, Reviews, and registry referral cards, including summary fields, tags, capabilities, representative queries, trust manifest, metadata, and raw entry JSON. |
 | 2026-06-23 | Console | Administrators can run OpenARD Console from the registry container and Compose stack without a separate Vite dev server. | Added a registry-served Vite/React OpenARD Console, `--console-dir` / `ARD_CONSOLE_DIR` static hosting at `/console`, bundled console assets in the Docker image, and compose verification for the console entrypoint. |
 | 2026-06-21 | Security | Enterprises can pin TLS certificate keys used for signed trust metadata verification. | Added `ard verify catalog --jws-tls-spki-pin host=sha256:<hex>` and `--require-jws-tls-spki-pins` for TLS certificate JWS discovery, requiring pinned leaf SPKI SHA-256 digests before accepting discovered Ed25519 keys. |
 | 2026-06-21 | Security | Enterprises can verify signed SPIFFE trust metadata from host-matched bundle JWKS endpoints. | Added `ard verify catalog --jws-discover-spiffe` to read `SPIFFE-X509` attestation `uri` values, require the bundle URI host to match the SPIFFE trust domain, extract OKP/Ed25519 keys, and reuse detached JWS verification. |

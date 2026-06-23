@@ -66,6 +66,8 @@ and console/network checks. At minimum, cover:
 - sidebar navigation across administrator sections
 - Settings save/clear behavior
 - an API-backed page against a local registry when available
+- resource details dialogs from Discover, Catalog, and Reviews when entry-shape data
+  changes
 - browser console has no runtime errors
 
 ## Component Boundaries
@@ -75,4 +77,5 @@ and console/network checks. At minimum, cover:
 - `src/api.ts` is the only fetch layer. Keep auth header handling and endpoint building
   there.
 - `src/App.tsx` owns the first administrator workflows: Overview, Discover, Catalog,
-  Add Resource, Reviews, Audit Log, Operations, and Settings.
+  Add Resource, Reviews, Audit Log, Operations, Settings, and resource detail
+  inspection.

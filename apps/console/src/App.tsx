@@ -5,6 +5,8 @@ import {
   Check,
   ClipboardCheck,
   Download,
+  ExternalLink,
+  Eye,
   FileJson,
   Gauge,
   Home,
@@ -38,7 +40,7 @@ import {
   getMetrics,
   searchEntries
 } from "./api";
-import { Badge, Button, DataTable, FieldSelect, SidebarItem, TextInput } from "./components/cds";
+import { Badge, Button, ConsoleDialog, DataTable, FieldSelect, SidebarItem, TextInput } from "./components/cds";
 import type { AdminAuditEvent, AdminAuditVerification, Catalog, CatalogEntry, ConsoleConfig, ExploreResponse, HealthResponse, ListResponse, SearchResult } from "./types";
 
 const configStorageKey = "openard.console.config";
@@ -656,23 +658,40 @@ function SettingsPage({ config, onSave }: { config: ConsoleConfig; onSave: (conf
 }
 
 function EntryTable({ entries, loading, showScore = false }: { entries: (CatalogEntry | SearchResult)[]; loading?: boolean; showScore?: boolean }) {
+  const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null);
+
   return (
-    <div className="rounded-cds border border-line bg-white">
-      <DataTable
-        rows={entries}
-        loading={loading}
-        showSelection={false}
-        showActions={false}
-        getKey={(entry) => entry.identifier}
-        columns={[
-          { key: "name", header: "Name", width: "28%", render: (entry) => <EntryName entry={entry} /> },
-          { key: "type", header: "Type", width: "18%", render: (entry) => <TypeBadge type={entry.type} /> },
-          { key: "publisher", header: "Publisher", width: "16%", render: (entry) => <span className="text-[#52514e]">{publisherFromIdentifier(entry.identifier)}</span> },
-          { key: "tags", header: "Tags", width: "22%", render: (entry) => <TagList tags={entry.tags ?? []} /> },
-          { key: "score", header: showScore ? "Score" : "Updated", width: "10%", align: "right", render: (entry) => <span className="text-[#52514e]">{showScore ? ((entry as SearchResult).score ?? "-") : formatDate(entry.updatedAt)}</span> }
-        ]}
+    <>
+      <div className="rounded-cds border border-line bg-white">
+        <DataTable
+          rows={entries}
+          loading={loading}
+          showSelection={false}
+          actionsWidth="110px"
+          getKey={(entry) => entry.identifier}
+          columns={[
+            { key: "name", header: "Name", width: "26%", render: (entry) => <EntryName entry={entry} /> },
+            { key: "type", header: "Type", width: "16%", render: (entry) => <TypeBadge type={entry.type} /> },
+            { key: "publisher", header: "Publisher", width: "15%", render: (entry) => <span className="text-[#52514e]">{publisherFromIdentifier(entry.identifier)}</span> },
+            { key: "tags", header: "Tags", width: "21%", render: (entry) => <TagList tags={entry.tags ?? []} /> },
+            { key: "score", header: showScore ? "Score" : "Updated", width: "10%", align: "right", render: (entry) => <span className="text-[#52514e]">{showScore ? ((entry as SearchResult).score ?? "-") : formatDate(entry.updatedAt)}</span> }
+          ]}
+          renderActions={(entry) => (
+            <Button variant="ghost" size="sm" onClick={() => setSelectedEntry(entry)} aria-label={`View details for ${entry.displayName}`}>
+              <Eye className="h-3.5 w-3.5" />
+              Details
+            </Button>
+          )}
+        />
+      </div>
+      <EntryDetailsDialog
+        entry={selectedEntry}
+        open={selectedEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEntry(null);
+        }}
       />
-    </div>
+    </>
   );
 }
 
@@ -693,46 +712,65 @@ function AdminEntryTable({
   onApprove?: (entry: CatalogEntry) => void;
   onReject?: (entry: CatalogEntry) => void;
 }) {
+  const [selectedEntry, setSelectedEntry] = useState<CatalogEntry | null>(null);
+
   return (
-    <div className="rounded-cds border border-line bg-white">
-      <DataTable
-        rows={entries}
-        loading={loading}
-        showSelection={false}
-        getKey={(entry) => entry.identifier}
-        actionsWidth={reviewMode ? "190px" : "220px"}
-        columns={[
-          { key: "status", header: "Status", width: "88px", render: (entry) => <StatusBadge status={entryStatus(entry)} /> },
-          { key: "name", header: "Name", width: "28%", render: (entry) => <EntryName entry={entry} /> },
-          { key: "type", header: "Type", width: "18%", render: (entry) => <TypeBadge type={entry.type} /> },
-          { key: "publisher", header: "Publisher", width: "14%", render: (entry) => <span className="text-[#52514e]">{publisherFromIdentifier(entry.identifier)}</span> },
-          { key: "updated", header: "Updated", width: "106px", render: (entry) => <span className="text-[#52514e]">{formatDate(entry.updatedAt)}</span> }
-        ]}
-        renderActions={(entry) => reviewMode ? (
-          <div className="flex items-center gap-1">
-            <Button variant="secondary" size="sm" onClick={() => onApprove?.(entry)}>
-              <Check className="h-3.5 w-3.5" />
-              Approve
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onReject?.(entry)}>
-              <X className="h-3.5 w-3.5" />
-              Reject
-            </Button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-1">
-            <Button variant="secondary" size="sm" onClick={() => onStatusChange?.(entry, entryStatus(entry) === "active" ? "disabled" : "active")}>
-              <Archive className="h-3.5 w-3.5" />
-              {entryStatus(entry) === "active" ? "Disable" : "Activate"}
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => onStatusChange?.(entry, "pending")}>Pend</Button>
-            <Button variant="ghost" size="sm" onClick={() => onDelete?.(entry)} aria-label={`Delete ${entry.displayName}`}>
-              <Trash2 className="h-3.5 w-3.5" />
-            </Button>
-          </div>
-        )}
+    <>
+      <div className="rounded-cds border border-line bg-white">
+        <DataTable
+          rows={entries}
+          loading={loading}
+          showSelection={false}
+          getKey={(entry) => entry.identifier}
+          actionsWidth={reviewMode ? "290px" : "310px"}
+          columns={[
+            { key: "status", header: "Status", width: "88px", render: (entry) => <StatusBadge status={entryStatus(entry)} /> },
+            { key: "name", header: "Name", width: "25%", render: (entry) => <EntryName entry={entry} /> },
+            { key: "type", header: "Type", width: "14%", render: (entry) => <TypeBadge type={entry.type} /> },
+            { key: "publisher", header: "Publisher", width: "13%", render: (entry) => <span className="text-[#52514e]">{publisherFromIdentifier(entry.identifier)}</span> },
+            { key: "updated", header: "Updated", width: "100px", render: (entry) => <span className="text-[#52514e]">{formatDate(entry.updatedAt)}</span> }
+          ]}
+          renderActions={(entry) => reviewMode ? (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedEntry(entry)} aria-label={`View details for ${entry.displayName}`}>
+                <Eye className="h-3.5 w-3.5" />
+                Details
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => onApprove?.(entry)}>
+                <Check className="h-3.5 w-3.5" />
+                Approve
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onReject?.(entry)}>
+                <X className="h-3.5 w-3.5" />
+                Reject
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setSelectedEntry(entry)} aria-label={`View details for ${entry.displayName}`}>
+                <Eye className="h-3.5 w-3.5" />
+                Details
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => onStatusChange?.(entry, entryStatus(entry) === "active" ? "disabled" : "active")}>
+                <Archive className="h-3.5 w-3.5" />
+                {entryStatus(entry) === "active" ? "Disable" : "Activate"}
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => onStatusChange?.(entry, "pending")}>Pend</Button>
+              <Button variant="ghost" size="sm" onClick={() => onDelete?.(entry)} aria-label={`Delete ${entry.displayName}`}>
+                <Trash2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          )}
+        />
+      </div>
+      <EntryDetailsDialog
+        entry={selectedEntry}
+        open={selectedEntry !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedEntry(null);
+        }}
       />
-    </div>
+    </>
   );
 }
 
@@ -767,11 +805,104 @@ function EntryName({ entry }: { entry: CatalogEntry }) {
 }
 
 function EntrySummary({ entry }: { entry: CatalogEntry }) {
+  const [detailsOpen, setDetailsOpen] = useState(false);
+
   return (
-    <div className="rounded-cds border border-line p-3">
-      <EntryName entry={entry} />
-      <p className="mt-2 cds-line-clamp-2 text-sm text-[#52514e]">{entry.description || "No description."}</p>
+    <>
+      <div className="rounded-cds border border-line p-3">
+        <div className="flex items-start justify-between gap-3">
+          <EntryName entry={entry} />
+          <Button variant="ghost" size="sm" onClick={() => setDetailsOpen(true)} aria-label={`View details for ${entry.displayName}`}>
+            <Eye className="h-3.5 w-3.5" />
+            Details
+          </Button>
+        </div>
+        <p className="mt-2 cds-line-clamp-2 text-sm text-[#52514e]">{entry.description || "No description."}</p>
+      </div>
+      <EntryDetailsDialog entry={entry} open={detailsOpen} onOpenChange={setDetailsOpen} />
+    </>
+  );
+}
+
+function EntryDetailsDialog({ entry, open, onOpenChange }: { entry: CatalogEntry | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+  return (
+    <ConsoleDialog
+      title={entry?.displayName ?? "Resource details"}
+      description={entry?.identifier}
+      open={open}
+      onOpenChange={onOpenChange}
+      contentClassName="w-[min(920px,calc(100vw-32px))]"
+    >
+      {entry ? (
+        <div className="mt-5 max-h-[calc(86vh-132px)] overflow-auto px-6 pb-6">
+          <div className="grid grid-cols-4 gap-3">
+            <DetailItem label="Status" value={<StatusBadge status={entryStatus(entry)} />} />
+            <DetailItem label="Type" value={<TypeBadge type={entry.type} />} />
+            <DetailItem label="Publisher" value={publisherFromIdentifier(entry.identifier)} />
+            <DetailItem label="Updated" value={formatDate(entry.updatedAt)} />
+          </div>
+          <section className="mt-5">
+            <h3 className="text-sm [font-weight:650]">Summary</h3>
+            <p className="mt-2 max-w-3xl text-sm text-[#52514e]">{entry.description || "No description."}</p>
+            <div className="mt-3 grid grid-cols-[140px_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
+              <span className="text-muted">Version</span>
+              <span className="min-w-0 truncate">{entry.version || "-"}</span>
+              <span className="text-muted">URL</span>
+              {entry.url ? (
+                <a href={entry.url} target="_blank" rel="noreferrer" className="inline-flex min-w-0 items-center gap-1 text-[#1b5eb8] hover:underline">
+                  <span className="truncate">{entry.url}</span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+                </a>
+              ) : <span>-</span>}
+            </div>
+          </section>
+          <section className="mt-5 grid grid-cols-2 gap-4">
+            <DetailList title="Capabilities" values={entry.capabilities ?? []} />
+            <DetailList title="Tags" values={entry.tags ?? []} />
+          </section>
+          <DetailList title="Representative queries" values={entry.representativeQueries ?? []} className="mt-5" ordered />
+          <section className="mt-5 grid grid-cols-2 gap-4">
+            <JSONBlock title="Trust manifest" value={entry.trustManifest} />
+            <JSONBlock title="Metadata" value={entry.metadata} />
+          </section>
+          <JSONBlock title="Raw entry JSON" value={entry} className="mt-5" />
+        </div>
+      ) : null}
+    </ConsoleDialog>
+  );
+}
+
+function DetailItem({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="min-w-0 rounded-cds border border-line bg-[#fbfaf7] p-3">
+      <div className="text-xs uppercase tracking-[0.06em] text-muted">{label}</div>
+      <div className="mt-1 min-w-0 truncate text-sm [font-weight:550]">{value}</div>
     </div>
+  );
+}
+
+function DetailList({ title, values, className = "", ordered = false }: { title: string; values: string[]; className?: string; ordered?: boolean }) {
+  const ListTag = ordered ? "ol" : "div";
+  return (
+    <section className={className}>
+      <h3 className="text-sm [font-weight:650]">{title}</h3>
+      {values.length === 0 ? <EmptyText>No values provided.</EmptyText> : (
+        <ListTag className={`mt-2 ${ordered ? "list-decimal space-y-1 pl-5" : "flex flex-wrap gap-1"}`}>
+          {values.map((value) => ordered
+            ? <li key={value} className="text-sm text-[#52514e]">{value}</li>
+            : <Badge key={value}>{value}</Badge>)}
+        </ListTag>
+      )}
+    </section>
+  );
+}
+
+function JSONBlock({ title, value, className = "" }: { title: string; value: unknown; className?: string }) {
+  return (
+    <section className={className}>
+      <h3 className="text-sm [font-weight:650]">{title}</h3>
+      <pre className="mt-2 max-h-[300px] overflow-auto rounded-cds bg-[#111] p-3 font-mono text-xs leading-5 text-[#f5f5f5]">{formatJSON(value)}</pre>
+    </section>
   );
 }
 
@@ -929,6 +1060,10 @@ function downloadJSON(filename: string, data: unknown) {
   link.download = filename;
   link.click();
   URL.revokeObjectURL(url);
+}
+
+function formatJSON(value: unknown) {
+  return JSON.stringify(value ?? {}, null, 2);
 }
 
 function parseMetrics(metrics: string) {
