@@ -1,11 +1,60 @@
 # Frontend Guide
 
-Read this file for frontend-heavy tasks once the repository includes a UI surface.
+OpenARD Console is the administrator-facing web UI under `apps/console`. It is a
+Vite/React workspace that reuses a compact CDS-style component layer and talks to the
+existing registry HTTP API.
 
-Suggested areas to maintain here:
+## Local Development
 
-- Local dev and build commands.
-- Browser-driven verification flows.
-- Shared component boundaries.
-- Design system usage and CSS/token conventions.
-- Frontend testing strategy.
+Install dependencies once:
+
+```sh
+npm install
+```
+
+Run the console:
+
+```sh
+make console-dev
+```
+
+The Vite dev server listens on `http://localhost:5173` and proxies OpenARD API routes
+to `http://localhost:8080` by default. Override the proxy target when needed:
+
+```sh
+ARD_CONSOLE_PROXY_TARGET=http://127.0.0.1:9090 make console-dev
+```
+
+In the console Settings page, leave the Registry API base URL empty when using the dev
+proxy or same-origin deployment. Set an admin bearer token to unlock protected Catalog,
+Reviews, Audit, and management actions.
+
+## Build And Checks
+
+```sh
+make console-lint
+make console-build
+```
+
+`console-lint` runs TypeScript with no emit. `console-build` runs the TypeScript build
+and Vite production build.
+
+## Browser Verification
+
+For UI changes, verify through the in-app browser with DOM/style inspection, screenshots,
+and console/network checks. At minimum, cover:
+
+- first render at `/overview`
+- sidebar navigation across administrator sections
+- Settings save/clear behavior
+- an API-backed page against a local registry when available
+- browser console has no runtime errors
+
+## Component Boundaries
+
+- `src/components/cds.tsx` contains the shared component primitives copied from the
+  reference console and should stay product-neutral.
+- `src/api.ts` is the only fetch layer. Keep auth header handling and endpoint building
+  there.
+- `src/App.tsx` owns the first administrator workflows: Overview, Discover, Catalog,
+  Add Resource, Reviews, Audit Log, Operations, and Settings.

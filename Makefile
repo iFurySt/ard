@@ -5,7 +5,7 @@ COMMIT ?= $(shell git rev-parse --short=12 HEAD 2>/dev/null || echo unknown)
 BUILD_DATE ?= $(shell git log -1 --format=%cI 2>/dev/null || date -u +%Y-%m-%dT%H:%M:%SZ)
 BUILD_LDFLAGS := -s -w -X github.com/ifuryst/ard/internal/buildinfo.Version=$(VERSION) -X github.com/ifuryst/ard/internal/buildinfo.Commit=$(COMMIT) -X github.com/ifuryst/ard/internal/buildinfo.Date=$(BUILD_DATE)
 
-.PHONY: init new-history new-plan fmt fmt-check check-workflows check-public-surface test test-public-go-client test-integration test-e2e test-compose build sbom package release-dry-run docker-build
+.PHONY: init new-history new-plan fmt fmt-check check-workflows check-public-surface test test-public-go-client test-integration test-e2e test-compose build console-dev console-build console-lint sbom package release-dry-run docker-build
 
 init:
 	@if [ -z "$(PROJECT)" ]; then echo "usage: make init PROJECT=my-project"; exit 1; fi
@@ -50,6 +50,15 @@ build:
 	go build -trimpath -ldflags "$(BUILD_LDFLAGS)" -o bin/ard ./cmd/ard
 	go build -trimpath -ldflags "$(BUILD_LDFLAGS)" -o bin/ardctl ./cmd/ardctl
 	go build -trimpath -ldflags "$(BUILD_LDFLAGS)" -o bin/ard-server ./cmd/ard-server
+
+console-dev:
+	npm run dev:console
+
+console-build:
+	npm run build:console
+
+console-lint:
+	npm run lint:console
 
 sbom:
 	@mkdir -p dist

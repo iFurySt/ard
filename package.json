@@ -1,0 +1,12 @@
+{
+  "name": "openard",
+  "private": true,
+  "scripts": {
+    "dev:console": "npm --workspace apps/console run dev",
+    "build:console": "npm --workspace apps/console run build",
+    "lint:console": "npm --workspace apps/console run lint"
+  },
+  "workspaces": [
+    "apps/console"
+  ]
+}
